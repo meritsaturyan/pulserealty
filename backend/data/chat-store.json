@@ -1,0 +1,257 @@
+{
+  "threads": {
+    "kgzqr75ypejAvO7YK6yA": {
+      "id": "kgzqr75ypejAvO7YK6yA",
+      "createdAt": 1760706003287,
+      "lastMessageAt": 1760791091669,
+      "lastMessageText": "ййй",
+      "unreadAdmin": 0,
+      "unreadUser": 0,
+      "status": "open",
+      "user": {
+        "name": "Antuaneta",
+        "nameNorm": "antuaneta",
+        "email": "antuaneta@mail.ru",
+        "phone": "undefined"
+      },
+      "_announcedNew": true
+    },
+    "th_t8j3wwqnj8mgw9kquy": {
+      "id": "th_t8j3wwqnj8mgw9kquy",
+      "createdAt": 1760791129594,
+      "lastMessageAt": 1760957684246,
+      "lastMessageText": "юююю",
+      "unreadAdmin": 0,
+      "unreadUser": 0,
+      "status": "open",
+      "user": {
+        "name": "Meri",
+        "nameNorm": "meri",
+        "email": "meri@mail.ru",
+        "phone": "8374928374"
+      },
+      "_announcedNew": true
+    },
+    "th_a939qc2mlpmgxnt8y1": {
+      "id": "th_a939qc2mlpmgxnt8y1",
+      "createdAt": 1760875507081,
+      "lastMessageAt": 1760875510001,
+      "lastMessageText": "",
+      "unreadAdmin": 0,
+      "unreadUser": 0,
+      "status": "open",
+      "user": {
+        "name": "пюло",
+        "nameNorm": "пюло",
+        "email": "лопшп",
+        "phone": "undefined"
+      },
+      "_announcedNew": true
+    },
+    "th_en5qpmzsphgmgxnttfd": {
+      "id": "th_en5qpmzsphgmgxnttfd",
+      "createdAt": 1760875533625,
+      "lastMessageAt": 1760899043612,
+      "lastMessageText": "еееееее",
+      "unreadAdmin": 0,
+      "unreadUser": 0,
+      "status": "open",
+      "user": {
+        "name": "Meri",
+        "nameNorm": "meri",
+        "email": "meri@mail.ru",
+        "phone": "undefined"
+      },
+      "_announcedNew": true
+    },
+    "th_aamob5di9emgz0dnhm": {
+      "id": "th_aamob5di9emgz0dnhm",
+      "createdAt": 1760957080618,
+      "lastMessageAt": 1760957080618,
+      "lastMessageText": "",
+      "unreadAdmin": 0,
+      "unreadUser": 0,
+      "status": "open",
+      "user": {},
+      "_announcedNew": true
+    }
+  },
+  "messages": {
+    "kgzqr75ypejAvO7YK6yA": [
+      {
+        "id": "m_57wqcgouj3vmgv2o0ci",
+        "threadId": "kgzqr75ypejAvO7YK6yA",
+        "sender": "user",
+        "text": "ааа",
+        "ts": 1760719058370
+      },
+      {
+        "id": "m_mq11s7dl19dmgv2oa5n",
+        "threadId": "kgzqr75ypejAvO7YK6yA",
+        "sender": "admin",
+        "text": "иии",
+        "ts": 1760719071083
+      },
+      {
+        "id": "m_kf9ve6dajomgv2wfvu",
+        "threadId": "kgzqr75ypejAvO7YK6yA",
+        "sender": "user",
+        "text": "ллл",
+        "ts": 1760719451754
+      },
+      {
+        "id": "m_9iadxwiwqwmgv2wjwr",
+        "threadId": "kgzqr75ypejAvO7YK6yA",
+        "sender": "admin",
+        "text": "ккк",
+        "ts": 1760719456971
+      },
+      {
+        "id": "m_udswhbk2pomgv2wubo",
+        "threadId": "kgzqr75ypejAvO7YK6yA",
+        "sender": "admin",
+        "text": "нннн",
+        "ts": 1760719470468
+      },
+      {
+        "id": "m_gcabl5org74mgv3hib1",
+        "threadId": "kgzqr75ypejAvO7YK6yA",
+        "sender": "user",
+        "text": "ннн",
+        "ts": 1760720434669
+      },
+      {
+        "id": "m_1wsa9kgj28imgv3hnmg",
+        "threadId": "kgzqr75ypejAvO7YK6yA",
+        "sender": "admin",
+        "text": "иии",
+        "ts": 1760720441560
+      },
+      {
+        "id": "m_wldmkg2955nmgv3hyfc",
+        "threadId": "kgzqr75ypejAvO7YK6yA",
+        "sender": "admin",
+        "text": "еее",
+        "ts": 1760720455560
+      },
+      {
+        "id": "m_49rd16lmjlamgv3idwr",
+        "threadId": "kgzqr75ypejAvO7YK6yA",
+        "sender": "user",
+        "text": "ййй",
+        "ts": 1760720475627
+      }
+    ],
+    "th_t8j3wwqnj8mgw9kquy": [
+      {
+        "id": "m_qx6ws7ntfcmgw9kwu2",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "user",
+        "text": "mmmm",
+        "ts": 1760791137338
+      },
+      {
+        "id": "m_lcntknv5t2mgw9l5d1",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "admin",
+        "text": "vvvv",
+        "ts": 1760791148389
+      },
+      {
+        "id": "m_nfssrbi8s0qmgy0znq3",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "user",
+        "text": "лллл",
+        "ts": 1760897641179
+      },
+      {
+        "id": "m_qjdqyc6afymgy1043w",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "user",
+        "text": "ррррр",
+        "ts": 1760897662412
+      },
+      {
+        "id": "m_0h4vzprf0cvdmgy1u5bk",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "user",
+        "text": "жжжжжж",
+        "ts": 1760899063664
+      },
+      {
+        "id": "m_kc6kzm3kxgnmgy1ue87",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "user",
+        "text": "ээээээ",
+        "ts": 1760899075207
+      },
+      {
+        "id": "m_owyxl2s30omgy2180t",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "user",
+        "text": "ъъъъъ",
+        "ts": 1760899393757
+      },
+      {
+        "id": "m_xvk7mjva6mgy21wng",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "user",
+        "text": "//////",
+        "ts": 1760899425676
+      },
+      {
+        "id": "m_mp73hui0kkgmgy220s2",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "user",
+        "text": "ъъъъъ",
+        "ts": 1760899431026
+      },
+      {
+        "id": "m_4yctw3wmxbimgyz3ybd",
+        "threadId": "th_t8j3wwqnj8mgw9kquy",
+        "sender": "user",
+        "text": "юююю",
+        "ts": 1760954948473
+      }
+    ],
+    "th_a939qc2mlpmgxnt8y1": [],
+    "th_en5qpmzsphgmgxnttfd": [
+      {
+        "id": "m_hn7bw0tvz06mgy1bw4p",
+        "threadId": "th_en5qpmzsphgmgxnttfd",
+        "sender": "user",
+        "text": "ььььь",
+        "ts": 1760898211945
+      },
+      {
+        "id": "m_ntro1o2jy9imgy1c2rq",
+        "threadId": "th_en5qpmzsphgmgxnttfd",
+        "sender": "user",
+        "text": "ннннн",
+        "ts": 1760898220550
+      },
+      {
+        "id": "m_x6phdzaec9rmgy1cfnh",
+        "threadId": "th_en5qpmzsphgmgxnttfd",
+        "sender": "user",
+        "text": "ссссс",
+        "ts": 1760898237245
+      },
+      {
+        "id": "m_fxdzs1nj9zmgy1d06g",
+        "threadId": "th_en5qpmzsphgmgxnttfd",
+        "sender": "user",
+        "text": "ввввв",
+        "ts": 1760898263848
+      },
+      {
+        "id": "m_8y5t1hjgzsgmgy1d6w1",
+        "threadId": "th_en5qpmzsphgmgxnttfd",
+        "sender": "user",
+        "text": "еееееее",
+        "ts": 1760898272545
+      }
+    ],
+    "th_aamob5di9emgz0dnhm": []
+  }
+}

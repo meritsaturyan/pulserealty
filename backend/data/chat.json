@@ -1,0 +1,32 @@
+{
+  "threads": [
+    {
+      "id": "kgzqr75ypejAvO7YK6yA",
+      "createdAt": 1760708096647,
+      "lastMessageAt": 1760708096647,
+      "lastMessageText": "",
+      "unreadAdmin": 0,
+      "unreadUser": 0,
+      "status": "open",
+      "user": {},
+      "_announcedNew": false
+    }
+  ],
+  "messages": {
+    "0": [
+      {
+        "id": "m_crqf2cp0t2m",
+        "sender": "user",
+        "text": "",
+        "ts": 1760708092487
+      },
+      {
+        "id": "m_j5rsxbzw9go",
+        "sender": "user",
+        "text": "",
+        "ts": 1760708092487
+      }
+    ],
+    "kgzqr75ypejAvO7YK6yA": []
+  }
+}
