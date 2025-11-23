@@ -143,8 +143,8 @@ try {
   await initDb();
   console.log('[DB] connected');
 
-  server.listen(PORT, () => {
-    console.log(`HTTP  listening on http://localhost:${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`HTTP  listening on http://0.0.0.0:${PORT}`);
     console.log(`WS    path=${SOCKET_PATH}, ns=/chat`);
     if (ALLOWED_ORIGINS.length) {
       console.log('CORS allowed:', ALLOWED_ORIGINS.join(', '));
@@ -152,8 +152,17 @@ try {
       console.log('CORS allowed: (any origin, reflected) — dev-friendly');
     }
   });
+
+  server.on('error', (err) => {
+    console.error('[SERVER] Error:', err?.message || err);
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[SERVER] Port ${PORT} is already in use`);
+    }
+  });
 } catch (e) {
   console.error('[DB] init failed:', e?.message || e);
+  console.error('[DB] Stack:', e?.stack);
+  console.error('[DB] Make sure DATABASE_URL or PostgreSQL credentials are set correctly');
   process.exit(1);
 }
 
