@@ -1,5 +1,20 @@
 {
   "threads": {
+    "6": {
+      "id": "6",
+      "createdAt": 1763899348310,
+      "lastMessageAt": 1763899348324,
+      "lastMessageText": "",
+      "unreadAdmin": 0,
+      "unreadUser": 0,
+      "status": "open",
+      "user": {
+        "name": "Meru",
+        "nameNorm": "meru",
+        "email": "meru@mail.ru"
+      },
+      "_announcedNew": true
+    },
     "kgzqr75ypejAvO7YK6yA": {
       "id": "kgzqr75ypejAvO7YK6yA",
       "createdAt": 1760706003287,
@@ -77,6 +92,7 @@
     }
   },
   "messages": {
+    "6": [],
     "kgzqr75ypejAvO7YK6yA": [
       {
         "id": "m_57wqcgouj3vmgv2o0ci",
