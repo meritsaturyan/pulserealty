@@ -2,14 +2,6 @@
 import { io } from "socket.io-client";
 
 
-
-function normalizeHostname(host = "") {
-  const map = {
-    "а":"a","с":"c","е":"e","о":"o","р":"p","х":"x","к":"k","у":"y","м":"m","т":"t","н":"h","в":"v",
-    "А":"A","С":"C","Е":"E","О":"O","Р":"P","Х":"X","К":"K","У":"Y","Մ":"M","Տ":"T","Ն":"H","Վ":"V",
-  };
-  return String(host).replace(/./g, ch => map[ch] ?? ch);
-}
 const stripSlash = (u="") => String(u||"").replace(/\/$/, "");
 const ensureOrigin = (u="") => {
   try {
@@ -85,29 +77,26 @@ function ensureApiPath(path) {
 
 
 async function fetchJsonSmart(path, init = {}) {
-  async function fetchJsonSmart(path, init = {}) {
-    const p = ensureApiPath(path);
-    const hasAbs = !!API_BASE;
-  
-    if (hasAbs) {
-      const abs = `${API_BASE}${p}`;
-      try {
-        const r1 = await withTimeout(fetch(abs, init));
-        const t1 = await r1.text();
-        if (!r1.ok) throw new Error(`${r1.status} ${p}: ${t1 || ''}`);
-        return t1 ? JSON.parse(t1) : null;
-      } catch {
+  const p = ensureApiPath(path);
+  const hasAbs = !!API_BASE;
 
-      }
+  if (hasAbs) {
+    const abs = `${API_BASE}${p}`;
+    try {
+      const r1 = await withTimeout(fetch(abs, init));
+      const t1 = await r1.text();
+      if (!r1.ok) throw new Error(`${r1.status} ${p}: ${t1 || ''}`);
+      return t1 ? JSON.parse(t1) : null;
+    } catch {
+      // fall through to relative fetch
     }
-  
-    const rel = p; 
-    const r2 = await withTimeout(fetch(rel, init));
-    const t2 = await r2.text();
-    if (!r2.ok) throw new Error(`${r2.status} ${p}: ${t2 || ''}`);
-    return t2 ? JSON.parse(t2) : null;
   }
-  
+
+  const rel = p; 
+  const r2 = await withTimeout(fetch(rel, init));
+  const t2 = await r2.text();
+  if (!r2.ok) throw new Error(`${r2.status} ${p}: ${t2 || ''}`);
+  return t2 ? JSON.parse(t2) : null;
 }
 
 

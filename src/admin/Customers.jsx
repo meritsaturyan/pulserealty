@@ -1,5 +1,5 @@
 // src/admin/Customers.jsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { io } from 'socket.io-client';
 import { API_BASE, WS_BASE as WS_BASE_LIB, SOCKET_PATH as SOCKET_PATH_LIB } from '../lib/apiBase';
@@ -149,13 +149,13 @@ export default function Customers() {
   const setItemsAndCache = (list) => { setItems(list); writeItemsCache(list); };
 
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const resp = await apiGetJSON('/customers');
     if (!resp) return; 
     const list = Array.isArray(resp?.items) ? resp.items : (Array.isArray(resp) ? resp : []);
     const normalized = list.map(normalizeItem);
     setItemsAndCache(normalized);
-  };
+  }, [setItemsAndCache]);
 
   useEffect(() => {
 
@@ -235,7 +235,7 @@ export default function Customers() {
       window.removeEventListener('focus', onWake);
 
     };
-  }, []);
+  }, [load]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();

@@ -5,7 +5,6 @@ import {
   getPropertyPanosLocal,
   getPropertyPanosCloud,
   setPropertyPanoramas,
-  removePropertyPano,
   syncLocalPanosToCloud,
 } from '../data/db';
 

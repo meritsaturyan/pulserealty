@@ -849,7 +849,7 @@ const PropertyDetails = () => {
       } finally { if (!aborted) setConversionLoading(false); }
     })();
     return () => { aborted = true; };
-  }, [selectedCurrency, property?.price]);
+  }, [selectedCurrency, property]);
 
 
   useEffect(() => {
@@ -913,29 +913,6 @@ const PropertyDetails = () => {
       await chat.sendMessage?.({ text: txt });
     } catch { /* silent */ }
   };
-
-
-  async function postJson(url, payload) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    });
-
-
-    let data = null;
-    const ct = res.headers.get('content-type') || '';
-    try {
-      data = ct.includes('application/json') ? await res.json() : await res.text();
-    } catch { /* ignore */ }
-
-    if (!res.ok) {
-      const err = (data && (data.error || data.message)) || `HTTP ${res.status}`;
-      throw new Error(err);
-    }
-    return data;
-  }
 
 
 const handlePhoneSend = async () => {

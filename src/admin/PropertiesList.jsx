@@ -95,8 +95,9 @@ export default function PropertiesList() {
     }
   }, [rows]);
 
-  const displayRows =
-    (Array.isArray(rows) && rows.length) ? rows : (lastNonEmptyRef.current || []);
+  const displayRows = useMemo(() => {
+    return (Array.isArray(rows) && rows.length) ? rows : (lastNonEmptyRef.current || []);
+  }, [rows]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();

@@ -265,13 +265,7 @@ export default function AdminChat() {
   }, [active, applyReadLocks, loadThreads, publishUnreadTotal]);
 
 
-  useEffect(() => {
-    if (!active && threads.length > 0) selectThread(threads[0].id);
-
-  }, [threads, active]);
-
-
-  const selectThread = async (id) => {
+  const selectThread = useCallback(async (id) => {
     if (!id) return;
     setActive(id);
 
@@ -290,7 +284,12 @@ export default function AdminChat() {
     });
 
     queueMicrotask(() => listRef.current?.scrollTo({ top: 1e9, behavior: 'auto' }));
-  };
+  }, [loadMessages, publishUnreadTotal]);
+
+  useEffect(() => {
+    if (!active && threads.length > 0) selectThread(threads[0].id);
+
+  }, [threads, active, selectThread]);
 
 
   const send = (e) => {

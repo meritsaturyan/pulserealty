@@ -165,7 +165,9 @@ export default function RecentProperties({ filterText = '' }) {
     if (Array.isArray(rows) && rows.length) lastNonEmptyRef.current = rows;
   }, [rows]);
 
-  const displayRows = rows?.length ? rows : (lastNonEmptyRef.current || []);
+  const displayRows = useMemo(() => {
+    return rows?.length ? rows : (lastNonEmptyRef.current || []);
+  }, [rows]);
   const query = (filterText || '').trim().toLowerCase();
 
   const filtered = useMemo(() => {
@@ -190,7 +192,6 @@ export default function RecentProperties({ filterText = '' }) {
         : (status || '');
     return STATUS_LABELS[lang]?.[key] || key;
   };
-  const typeLabel = (type) => TYPE_LABELS[lang]?.[type] || type || '';
 
   // безопасная картинка (без пустого src)
   const isProbablyUrl = (s) =>
