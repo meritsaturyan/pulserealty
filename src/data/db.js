@@ -32,12 +32,43 @@ function pickRegionName(r) {
 
 function adaptProperty(p) {
   if (!p) return null;
-  const images = Array.isArray(p.images) ? p.images : [];
-  const pans = Array.isArray(p.panoramas) ? p.panoramas : [];
-  const ams = Array.isArray(p.amenities) ? p.amenities : [];
 
-  const imageUrls = images.map((i) => i?.url || i).filter(Boolean);
-  const panoUrls = pans.map((i) => i?.url || i).filter(Boolean);
+  // 1) Картинки: учитываем и backend-ассоциации
+  const rawImages =
+    Array.isArray(p.images) ? p.images :
+    Array.isArray(p.PropertyImages) ? p.PropertyImages :
+    Array.isArray(p.propertyImages) ? p.propertyImages :
+    [];
+
+  // 2) Панорамы: тоже пробуем разные варианты
+  const rawPanos =
+    Array.isArray(p.panoramas) ? p.panoramas :
+    Array.isArray(p.Panoramas) ? p.Panoramas :
+    Array.isArray(p.propertyPanoramas) ? p.propertyPanoramas :
+    [];
+
+  // 3) Удобства: вдруг приходят как Amenities
+  const rawAmenities =
+    Array.isArray(p.amenities) ? p.amenities :
+    Array.isArray(p.Amenities) ? p.Amenities :
+    [];
+
+  const imageUrls = rawImages
+    .map((i) => {
+      if (!i) return null;
+      if (typeof i === 'string') return i;
+      return i.url || i.image || i.src || null;
+    })
+    .filter(Boolean);
+
+  const panoUrls = rawPanos
+    .map((i) => {
+      if (!i) return null;
+      if (typeof i === 'string') return i;
+      return i.url || i.image || i.src || null;
+    })
+    .filter(Boolean);
+
   const area_sq_m = p.area_sq_m ?? p.area ?? null;
 
   return {
@@ -61,13 +92,14 @@ function adaptProperty(p) {
     image: p.cover_image || imageUrls[0] || '',
     images: imageUrls,
     panos: panoUrls,
-    amenities: ams.map(pickAmenityName).filter(Boolean),
+    amenities: rawAmenities.map(pickAmenityName).filter(Boolean),
     Region: p.Region ? { ...p.Region, title: pickRegionName(p.Region) } : null,
     Town: p.Town ? { ...p.Town, title: pickTownName(p.Town) } : null,
     updatedAt: nowTs(),
     _local: Boolean(p._local),
   };
 }
+
 
 
 

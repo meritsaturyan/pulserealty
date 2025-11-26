@@ -14,6 +14,9 @@ import {
 } from '../data/db';
 import PanoUploader from '../components/PanoUploader';
 
+import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
 
 const Page = styled.div`background:#fff; border-radius:12px; padding:20px;`;
 const Title = styled.h2`margin:0 0 16px 0;`;
@@ -83,6 +86,32 @@ const Btn = styled.button`
 const AmenGrid = styled.div`display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 16px; @media (max-width:600px){ grid-template-columns:1fr; }`;
 const AmenItem = styled.label`display:flex; align-items:center; gap:10px; font-size:14px; color:#374151; input{ width:18px; height:18px; }`;
 
+const MapBox = styled.div`
+  margin-top: 4px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #eef0f3;
+  background: #fff;
+  .leaflet-container {
+    height: 260px;
+    width: 100%;
+  }
+`;
+const MapTitle = styled.h3`
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1A3D4D;
+`;
+const MapRow = styled.div`
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
 
 const AMENITIES = [
   'Օդորակիչ', 'Սպա և մերսում', 'Սպորտդահլիճ', 'Լողավազան', 'Ահազանգման համակարգ',
@@ -104,6 +133,27 @@ const regionsWithTowns = {
   Tavush: ['Ijevan', 'Dilijan', 'Berd', 'Noyemberyan'],
 };
 
+const DEFAULT_LAT = 40.1772;   // Yerevan
+const DEFAULT_LNG = 44.50349;
+
+const defaultIcon = L.icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+function MapClickSetter({ onChange }) {
+  useMapEvents({
+    click(e) {
+      if (!onChange) return;
+      onChange(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
 
 const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
   const fr = new FileReader();
@@ -140,16 +190,13 @@ const normalizeStatus = (s) => {
 const labelForStatus = (s) => (normalizeStatus(s) === 'for_rent' ? 'Վարձով' : 'Վաճառք');
 const numOrNull = (v) => (v === '' || v == null ? null : Number(v));
 
-
 export default function PropertyForm() {
   const params = useParams();
   const navigate = useNavigate();
   const isEdit = params.id && params.id !== 'new';
 
-
   const [all, setAll] = useState(() => getPropertiesCached() || []);
   const [loading, setLoading] = useState(false);
-
 
   useEffect(() => {
     let alive = true;
@@ -161,16 +208,13 @@ export default function PropertyForm() {
     return () => { alive = false; };
   }, []);
 
-
   const current = useMemo(() => {
     const arr = Array.isArray(all) ? all : [];
     return isEdit ? arr.find(p => String(p.id) === String(params.id)) : null;
   }, [all, isEdit, params.id]);
 
-
   const [draftId] = useState(() => String(Date.now()));
   const propId = isEdit ? (current?.id ?? params.id) : draftId;
-
 
   const [form, setForm] = useState(() => ({
     title: current?.title || '',
@@ -187,8 +231,9 @@ export default function PropertyForm() {
     images: current?.images || (current?.image ? [current.image] : []),
     floor: current?.floor || '',
     amenities: Array.isArray(current?.amenities) ? current.amenities : [],
+    lat: current?.lat ?? '',
+    lng: current?.lng ?? '',
   }));
-
 
   useEffect(() => {
     if (!isEdit || !current) return;
@@ -208,6 +253,8 @@ export default function PropertyForm() {
       images: current.images || (current.image ? [current.image] : []),
       floor: current.floor || '',
       amenities: Array.isArray(current.amenities) ? current.amenities : [],
+      lat: current.lat ?? '',
+      lng: current.lng ?? '',
     }));
   }, [isEdit, current]);
 
@@ -227,7 +274,6 @@ export default function PropertyForm() {
     })();
   }, [current?.id, isEdit, params.id, current?.image]);
 
-
   const towns = useMemo(
     () => (form.region ? regionsWithTowns[form.region] || [] : []),
     [form.region]
@@ -238,7 +284,6 @@ export default function PropertyForm() {
     }
   }, [form.region, towns, form.town]);
 
-
   const onChange = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }));
   const toggleAmenity = (name) =>
     setForm(prev => {
@@ -246,7 +291,6 @@ export default function PropertyForm() {
       set.has(name) ? set.delete(name) : set.add(name);
       return { ...prev, amenities: [...set] };
     });
-
 
   const rowRef = useRef(null);
   const [canLeft, setCanLeft] = useState(false);
@@ -290,7 +334,6 @@ export default function PropertyForm() {
 
   const nudge = (dir) => rowRef.current?.scrollBy({ left: dir * 360, behavior: 'smooth' });
 
-
   const [dragIdx, setDragIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
   const moveItem = (arr, from, to) => {
@@ -322,6 +365,31 @@ export default function PropertyForm() {
   const moveRight = (i) => setForm(prev => ({ ...prev, images: moveItem(prev.images || [], i, Math.min((prev.images?.length || 1) - 1, i + 1)) }));
   const makeCover = (i) => setForm(prev => ({ ...prev, images: moveItem(prev.images || [], i, 0) }));
 
+  const handleGeocode = async () => {
+    const parts = [form.region, form.town, form.street].filter(Boolean);
+    const q = parts.join(', ');
+    if (!q) return;
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, {
+        headers: { 'Accept-Language': 'hy,en;q=0.8,ru;q=0.6' },
+      });
+      const data = await res.json();
+      if (Array.isArray(data) && data.length) {
+        const hit = data[0];
+        setForm(f => ({
+          ...f,
+          lat: hit.lat,
+          lng: hit.lon,
+        }));
+      } else {
+        alert('Հասցեն չի գտնվել քարտեզում');
+      }
+    } catch (e) {
+      alert('Սխալ քարտեզի հարցման ժամանակ');
+    }
+  };
 
   const save = async () => {
     if (!form.title.trim()) { alert('Գրեք վերնագիր'); return; }
@@ -331,10 +399,8 @@ export default function PropertyForm() {
     const editingId = isEdit ? (current?.id ?? params.id) : null;
     const draftLocalId = String(propId);
 
-
     const panosLocal = (await getPropertyPanos(editingId || draftLocalId)) || [];
 
-  
     const payloadBase = {
       title: form.title,
       type: form.type,
@@ -356,17 +422,18 @@ export default function PropertyForm() {
       images: form.images || [],
       panos: panosLocal,
       updatedAt: new Date().toISOString(),
+
+      lat: numOrNull(form.lat),
+      lng: numOrNull(form.lng),
     };
 
-
-    const payload = editingId
+  const payload = editingId
       ? { id: editingId, ...payloadBase }
       : { id: draftLocalId, ...payloadBase };
 
-
     setLoading(true);
     try {
-      const saved = await saveProperty(payload); 
+      const saved = await saveProperty(payload);
       const savedId = String(saved?.id ?? editingId ?? draftLocalId);
 
       if (!editingId && saved?.id && draftLocalId !== String(saved.id)) {
@@ -377,7 +444,6 @@ export default function PropertyForm() {
           }
         } catch { /* noop */ }
       }
-
 
       try {
         await syncLocalPanosToCloud(savedId);
@@ -417,6 +483,8 @@ export default function PropertyForm() {
     }
   };
 
+  const centerLat = Number(form.lat) || DEFAULT_LAT;
+  const centerLng = Number(form.lng) || DEFAULT_LNG;
 
   return (
     <Page>
@@ -550,7 +618,74 @@ export default function PropertyForm() {
         </Field>
 
         <Field style={{ gridColumn: 'span 2' }}>
-          <Label>Հարմարություններ</Label>
+          <MapBox>
+            <MapTitle>Քարտեզում հասցեն</MapTitle>
+            <MapRow>
+              <Input
+                placeholder="Փողոց / հասցե (քաղաքը կավելացվի ավտոմատ)"
+                value={form.street}
+                onChange={onChange('street')}
+              />
+              <Input
+                type="number"
+                step="0.000001"
+                placeholder="Լատ (lat)"
+                value={form.lat ?? ''}
+                onChange={onChange('lat')}
+              />
+              <Input
+                type="number"
+                step="0.000001"
+                placeholder="Լոնգ (lng)"
+                value={form.lng ?? ''}
+                onChange={onChange('lng')}
+              />
+            </MapRow>
+
+            <button
+              type="button"
+              onClick={handleGeocode}
+              style={{
+                marginBottom: 8,
+                padding: '8px 12px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#f0ae00',
+                color: '#111',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Գտնել քարտեզում ըստ հասցեի
+            </button>
+
+            <MapContainer
+              center={[centerLat, centerLng]}
+              zoom={15}
+              scrollWheelZoom={false}
+              style={{ borderRadius: 12, overflow: 'hidden' }}
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution="&copy; OpenStreetMap contributors"
+              />
+              <Marker position={[centerLat, centerLng]} icon={defaultIcon} />
+              <MapClickSetter
+                onChange={(lat, lng) =>
+                  setForm(f => ({
+                    ...f,
+                    lat: lat.toFixed(6),
+                    lng: lng.toFixed(6),
+                  }))
+                }
+              />
+            </MapContainer>
+          </MapBox>
+        </Field>
+
+        <Field style={{ gridColumn: 'span 2' }}>
+          {/* блок удобств пока убран по твоей просьбе */}
+          {/* <Label>Հարմարություններ</Label>
           <AmenGrid>
             {AMENITIES.map(a => (
               <AmenItem key={a}>
@@ -562,7 +697,7 @@ export default function PropertyForm() {
                 <span>{a}</span>
               </AmenItem>
             ))}
-          </AmenGrid>
+          </AmenGrid> */}
         </Field>
 
         <Field style={{ gridColumn: 'span 2' }}>

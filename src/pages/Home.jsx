@@ -750,7 +750,7 @@ const Home = ({ propertiesRef: propRef }) => {
       { }
       <ContactsSection>
         <h3>{t.callUs} +374 94444940</h3>
-        <p>💬 Live Chat: <a href="https://t.me/your_support_bot" target="_blank" rel="noopener noreferrer">{t.openTelegram}</a></p>
+        <p>💬 Live Chat: <a href="https://t.me/+37494444940" target="_blank" rel="noopener noreferrer">{t.openTelegram}</a></p>
       </ContactsSection>
     </>
   );
