@@ -5,15 +5,36 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaPhone } from 'react-icons/fa';
 import { io } from 'socket.io-client';
 import AuthModal from './AuthModal';
-import chat from '../lib/chatClient'; 
-
+import chat from '../lib/chatClient';
 
 function normalizeHostname(host = '') {
   const map = {
-    'а':'a','с':'c','е':'e','о':'o','р':'p','х':'x','к':'k','у':'y','м':'m','т':'t','н':'h','в':'v',
-    'А':'A','С':'C','Е':'E','О':'O','Р':'P','Х':'X','К':'K','У':'Y','М':'M','Տ':'T','Н':'H','В':'V',
+    а: 'a',
+    с: 'c',
+    е: 'e',
+    о: 'o',
+    р: 'p',
+    х: 'x',
+    к: 'k',
+    у: 'y',
+    м: 'm',
+    т: 't',
+    н: 'h',
+    в: 'v',
+    А: 'A',
+    С: 'C',
+    Е: 'E',
+    О: 'O',
+    Р: 'P',
+    Х: 'X',
+    К: 'K',
+    У: 'Y',
+    М: 'M',
+    Տ: 'T',
+    Н: 'H',
+    В: 'V',
   };
-  return String(host).replace(/./g, ch => map[ch] ?? ch);
+  return String(host).replace(/./g, (ch) => map[ch] ?? ch);
 }
 function sanitizeBase(u = '') {
   try {
@@ -34,19 +55,41 @@ const { WS_BASE, WS_PATH } = (() => {
 
   const wsDev = isLocal ? `ws://localhost:5050` : origin.origin;
   const base = sanitizeBase(w.__PULSE_WS_BASE || wsDev);
-  const path = (w.__PULSE_SOCKET_PATH || w.__PULSE_WS_PATH || '/socket.io');
+  const path = w.__PULSE_SOCKET_PATH || w.__PULSE_WS_PATH || '/socket.io';
 
-  try { console.log('[Header] WS_BASE=', base, 'WS_PATH=', path); } catch {}
+  try {
+    console.log('[Header] WS_BASE=', base, 'WS_PATH=', path);
+  } catch {}
   return { WS_BASE: base, WS_PATH: path };
 })();
-
 
 const FALLBACK_HEADER_OFFSET = 90;
 
 const TEXT = {
-  en: { home: 'Home', about: 'About Us', contacts: 'Contacts', properties: 'Properties', signin: 'Sign In', cta: 'Have a real estate for sale' },
-  ru: { home: 'Главная', about: 'О нас', contacts: 'Контакты', properties: 'Объекты', signin: 'Войти', cta: 'Есть недвижимость на продажу' },
-  hy: { home: 'Գլխավոր', about: 'Մեր մասին', contacts: 'Կոնտակտներ', properties: 'Գույքեր', signin: 'Մուտք գործել', cta: 'Ունե՞ք վաճառքի անշարժ գույք' },
+  en: {
+    home: 'Home',
+    about: 'About Us',
+    contacts: 'Contacts',
+    properties: 'Properties',
+    signin: 'Sign In',
+    cta: 'Have a real estate for sale',
+  },
+  ru: {
+    home: 'Главная',
+    about: 'О нас',
+    contacts: 'Контакты',
+    properties: 'Объекты',
+    signin: 'Войти',
+    cta: 'Есть недвижимость на продаже',
+  },
+  hy: {
+    home: 'Գլխավոր',
+    about: 'Մեր մասին',
+    contacts: 'Կոնտակտներ',
+    properties: 'Գույքեր',
+    signin: 'Մուտք գործել',
+    cta: 'Ունե՞ք վաճառքի անշարժ գույք',
+  },
 };
 
 const HeaderWrapper = styled.header`
@@ -56,87 +99,197 @@ const HeaderWrapper = styled.header`
   justify-content: space-between;
   align-items: center;
   position: fixed;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 9999 !important;
   background: rgba(0, 0, 0, 0.8);
-  @media (max-width: 768px) { position: fixed; }
+  @media (max-width: 768px) {
+    position: fixed;
+  }
 `;
 
-const LogoImg = styled.img`height: 60px;`;
+const LogoImg = styled.img`
+  height: 60px;
+`;
 
 const Nav = styled.nav`
-  display: flex; gap: 30px;
-  a { text-decoration: none; color: white; font-weight: 500; transition: color .2s; &:hover{ color:#f0ae00; } }
-  @media (max-width: 768px){ display:none; }
+  display: flex;
+  gap: 30px;
+  a {
+    text-decoration: none;
+    color: white;
+    font-weight: 500;
+    transition: color 0.2s;
+    &:hover {
+      color: #f0ae00;
+    }
+  }
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const Actions = styled.div`
-  display:flex; align-items:center; gap:16px;
-  @media (max-width:768px){ display:none; }
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const AddButton = styled.button`
-  padding:8px 16px; background:#f0ae00; color:#fff; border:none; border-radius:4px; cursor:pointer;
-  &:hover{ filter:brightness(.95); }
+  padding: 8px 16px;
+  background: #f0ae00;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover {
+    filter: brightness(0.95);
+  }
 `;
 
 const SignInButton = styled.button`
-  background:none; border:none; color:#fff; font-weight:500; cursor:pointer; transition:color .2s;
-  &:hover{ color:#f0ae00; }
+  background: none;
+  border: none;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s;
+  &:hover {
+    color: #f0ae00;
+  }
 `;
 
 const Burger = styled.div`
-  display:none; font-size:24px; color:#fff; cursor:pointer;
-  @media (max-width:768px){ display:block; }
+  display: none;
+  font-size: 24px;
+  color: #fff;
+  cursor: pointer;
+  @media (max-width: 768px) {
+    display: block;
+  }
 `;
 
 const MobileMenu = styled.div`
-  display:none;
-  @media (max-width:768px){
-    display:flex; flex-direction:column; position:fixed;
-    top:var(--header-h,72px); left:0; right:0; height:calc(100vh - var(--header-h,72px));
-    background:#333; padding:20px; z-index:9998; overflow-y:auto;
-    .menu-item{ color:#fff; text-align:left; padding:12px 0; background:none; border:none; font-size:16px; text-decoration:none; display:block; cursor:pointer; }
-    .menu-item:hover{ color:#f0ae00; }
+  display: none;
+  @media (max-width: 768px) {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: var(--header-h, 72px);
+    left: 0;
+    right: 0;
+    height: calc(100vh - var(--header-h, 72px));
+    background: #333;
+    padding: 20px;
+    z-index: 9998;
+    overflow-y: auto;
+    .menu-item {
+      color: #fff;
+      text-align: left;
+      padding: 12px 0;
+      background: none;
+      border: none;
+      font-size: 16px;
+      text-decoration: none;
+      display: block;
+      cursor: pointer;
+    }
+    .menu-item:hover {
+      color: #f0ae00;
+    }
   }
 `;
 
 const CallCircle = styled.a`
-  display:none;
-  @media (max-width:768px){
-    display:inline-flex; align-items:center; justify-content:center; position:absolute; right:72px; top:50%; transform:translateY(-50%);
-    width:44px; height:44px; border-radius:9999px; background:#28a745; color:#fff; text-decoration:none; box-shadow:0 8px 20px rgba(0,0,0,.12); z-index:10000;
+  display: none;
+  @media (max-width: 768px) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 72px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 9999px;
+    background: #28a745;
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    z-index: 10000;
   }
 `;
 
 const Badge = styled.span`
-  display:inline-flex; align-items:center; justify-content:center;
-  min-width:18px; height:18px; padding:0 5px;
-  margin-left:6px; border-radius:999px; background:#f43f5e; color:#fff;
-  font-size:11px; line-height:1; font-weight:800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #f43f5e;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 800;
 `;
 
-const FlagGroup = styled.div`display:flex; gap:8px; align-items:center;`;
+const FlagGroup = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
 const FlagBtn = styled.button`
-  width:28px; height:20px; padding:0; border-radius:4px;
-  border:1px solid ${({$active}) => ($active ? '#f0ae00' : 'rgba(255,255,255,.35)')};
-  background:rgba(255,255,255,.08); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;
+  width: 28px;
+  height: 20px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid ${({ $active }) => ($active ? '#f0ae00' : 'rgba(255,255,255,.35)')};
+  background: rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
 `;
-const FlagImg = styled.img`width:100%; height:100%; object-fit:cover; display:block; border-radius:3px;`;
-const FlagFallback = styled.span`font-size:11px; color:#fff; font-weight:700;`;
+const FlagImg = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 3px;
+`;
+const FlagFallback = styled.span`
+  font-size: 11px;
+  color: #fff;
+  font-weight: 700;
+`;
 
-const LANG_TO_CC = { hy:'am', ru:'ru', en:'gb' };
+const LANG_TO_CC = { hy: 'am', ru: 'ru', en: 'gb' };
 function CountryFlag({ lang }) {
   const cc = LANG_TO_CC[lang] || 'gb';
-  const [err,setErr] = useState(false);
+  const [err, setErr] = useState(false);
   const src = `https://flagcdn.com/${cc}.svg`;
-  if (err) return <FlagFallback>{(lang||'').toUpperCase()}</FlagFallback>;
+  if (err) return <FlagFallback>{(lang || '').toUpperCase()}</FlagFallback>;
   return <FlagImg src={src} alt={lang} onError={() => setErr(true)} />;
 }
 
-const MobileCTA = styled(AddButton)` width:100%; margin-top:12px; border-radius:6px; font-weight:700; `;
-const PhoneIconR = styled(FaPhone)`transform:scaleX(-1);`;
-
+const MobileCTA = styled(AddButton)`
+  width: 100%;
+  margin-top: 12px;
+  border-radius: 6px;
+  font-weight: 700;
+`;
+const PhoneIconR = styled(FaPhone)`
+  transform: scaleX(-1);
+`;
 
 function getThreadId() {
   return (
@@ -151,14 +304,16 @@ function readUnreadTotal() {
   if (totalStr != null) return Number(totalStr) || 0;
   try {
     const map = JSON.parse(localStorage.getItem('pulse:chat:unreadUserMap') || '{}');
-    return Object.values(map).reduce((s,v)=>s+Number(v||0),0);
-  } catch { return 0; }
+    return Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
+  } catch {
+    return 0;
+  }
 }
 function bumpUnread(tid, delta = 1) {
   try {
     const map = JSON.parse(localStorage.getItem('pulse:chat:unreadUserMap') || '{}');
     map[tid] = Number(map[tid] || 0) + delta;
-    const total = Object.values(map).reduce((s,v)=>s+Number(v||0),0);
+    const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
     localStorage.setItem('pulse:chat:unreadUserMap', JSON.stringify(map));
     localStorage.setItem('pulse:chat:unreadUserTotal', String(total));
     window.dispatchEvent(new CustomEvent('pulse:chat-unread-changed', { detail: { total } }));
@@ -172,12 +327,11 @@ function resetUnreadAll() {
   window.dispatchEvent(new CustomEvent('pulse:user-unread-changed', { detail: { total: 0 } }));
 }
 
-
 function getHeaderSocket() {
   if (window.__pulseHeaderSock) return window.__pulseHeaderSock;
   const sock = io(`${WS_BASE}/chat`, {
     path: WS_PATH,
-    transports: ['websocket','polling'],
+    transports: ['websocket', 'polling'],
     withCredentials: true,
     autoConnect: true,
     reconnection: true,
@@ -192,7 +346,11 @@ const Header = ({ onPropertiesClick }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [lang, setLang] = useState('hy');
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('pulse_user') || 'null'); } catch { return null; }
+    try {
+      return JSON.parse(localStorage.getItem('pulse_user') || 'null');
+    } catch {
+      return null;
+    }
   });
   const [unread, setUnread] = useState(readUnreadTotal());
 
@@ -211,7 +369,10 @@ const Header = ({ onPropertiesClick }) => {
     const ro = new ResizeObserver(setVar);
     ro.observe(el);
     window.addEventListener('resize', setVar);
-    return () => { ro.disconnect(); window.removeEventListener('resize', setVar); };
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', setVar);
+    };
   }, []);
 
   useEffect(() => {
@@ -222,19 +383,17 @@ const Header = ({ onPropertiesClick }) => {
     document.documentElement.lang = initial;
   }, []);
 
-
   useEffect(() => {
     const h = (e) => setUser(e.detail || null);
     window.addEventListener('pulse:auth', h);
     return () => window.removeEventListener('pulse:auth', h);
   }, []);
 
-
   const prevUserRef = useRef(null);
   useEffect(() => {
     const prev = prevUserRef.current;
-    const prevKey = prev ? `${prev.id||''}|${prev.email||''}|${prev.name||''}` : '';
-    const curKey  = user ? `${user.id||''}|${user.email||''}|${user.name||''}` : '';
+    const prevKey = prev ? `${prev.id || ''}|${prev.email || ''}|${prev.name || ''}` : '';
+    const curKey = user ? `${user.id || ''}|${user.email || ''}|${user.name || ''}` : '';
 
     if (curKey && curKey !== prevKey) {
       chat.resetForAccount({ name: user.name, email: user.email });
@@ -248,7 +407,6 @@ const Header = ({ onPropertiesClick }) => {
     prevUserRef.current = user || null;
   }, [user]);
 
-
   useEffect(() => {
     const onUnread = () => setUnread(readUnreadTotal());
     window.addEventListener('pulse:chat-unread-changed', onUnread);
@@ -261,7 +419,6 @@ const Header = ({ onPropertiesClick }) => {
       window.removeEventListener('storage', onUnread);
     };
   }, []);
-
 
   useEffect(() => {
     const tid = getThreadId();
@@ -277,9 +434,10 @@ const Header = ({ onPropertiesClick }) => {
       }
     };
     sock.on('message', onMsg);
-    return () => { sock.off('message', onMsg); };
+    return () => {
+      sock.off('message', onMsg);
+    };
   }, [location.pathname]);
-
 
   useEffect(() => {
     if (location.pathname.startsWith('/contacts')) {
@@ -301,7 +459,10 @@ const Header = ({ onPropertiesClick }) => {
   };
 
   const getHeaderOffset = () => {
-    const v = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-h'), 10);
+    const v = parseInt(
+      getComputedStyle(document.documentElement).getPropertyValue('--header-h'),
+      10
+    );
     return Number.isFinite(v) ? v : FALLBACK_HEADER_OFFSET;
   };
 
@@ -317,7 +478,10 @@ const Header = ({ onPropertiesClick }) => {
 
   const smoothScrollToProperties = () => {
     const target = findTarget();
-    if (target) { scrollToWithOffset(target, getHeaderOffset()); return true; }
+    if (target) {
+      scrollToWithOffset(target, getHeaderOffset());
+      return true;
+    }
     return false;
   };
 
@@ -332,13 +496,44 @@ const Header = ({ onPropertiesClick }) => {
     }, 80);
   };
 
+  // *** НОВОЕ: обработчик клика по лого ***
+  const isHomePath = (pathname) => {
+    const p = (pathname || '').replace(/\/+$/, '');
+    // для случая, когда basename = /pulserealty
+    return p === '' || p === '/' || p === '/pulserealty';
+  };
+
+  const scrollToTopSmooth = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLogoClick = (e) => {
+    e.preventDefault();
+    setMobileOpen(false);
+
+    if (isHomePath(location.pathname)) {
+      // уже на главной — просто скроллим вверх
+      scrollToTopSmooth();
+    } else {
+      // переходим на главную и после навигации скроллим вверх
+      navigate('/');
+      setTimeout(scrollToTopSmooth, 0);
+    }
+  };
+  // *** КОНЕЦ НОВОГО КОДА ***
+
   const t = TEXT[lang] || TEXT.hy;
   const headerName = user?.name || user?.email || 'Meri';
 
   return (
     <>
       <HeaderWrapper ref={headerRef}>
-        <Link to="/" aria-label="Go home" style={{ lineHeight: 0 }}>
+        <Link
+          to="/"
+          aria-label="Go home"
+          style={{ lineHeight: 0 }}
+          onClick={handleLogoClick}
+        >
           <LogoImg src={`${process.env.PUBLIC_URL}/pulselogo.PNG`} alt="Pulse Realty Logo" />
         </Link>
 
@@ -353,23 +548,42 @@ const Header = ({ onPropertiesClick }) => {
             {t.contacts}
             {unread > 0 && <Badge>{unread}</Badge>}
           </Link>
-          <Link to="/" onClick={handlePropertiesClick}>{t.properties}</Link>
+          <Link to="/" onClick={handlePropertiesClick}>
+            {t.properties}
+          </Link>
         </Nav>
 
         <Actions>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <FlagGroup>
-              <FlagBtn aria-label="Հայերեն" onClick={() => changeLang('hy')} $active={lang === 'hy'}><CountryFlag lang="hy" /></FlagBtn>
-              <FlagBtn aria-label="Русский" onClick={() => changeLang('ru')} $active={lang === 'ru'}><CountryFlag lang="ru" /></FlagBtn>
-              <FlagBtn aria-label="English" onClick={() => changeLang('en')} $active={lang === 'en'}><CountryFlag lang="en" /></FlagBtn>
+              <FlagBtn
+                aria-label="Հայերեն"
+                onClick={() => changeLang('hy')}
+                $active={lang === 'hy'}
+              >
+                <CountryFlag lang="hy" />
+              </FlagBtn>
+              <FlagBtn
+                aria-label="Русский"
+                onClick={() => changeLang('ru')}
+                $active={lang === 'ru'}
+              >
+                <CountryFlag lang="ru" />
+              </FlagBtn>
+              <FlagBtn
+                aria-label="English"
+                onClick={() => changeLang('en')}
+                $active={lang === 'en'}
+              >
+                <CountryFlag lang="en" />
+              </FlagBtn>
             </FlagGroup>
 
             {user ? (
               <>
-                <span style={{ color:'#fff' }}>{headerName}</span>
+                <span style={{ color: '#fff' }}>{headerName}</span>
                 <SignInButton
                   onClick={() => {
-
                     localStorage.removeItem('pulse_token');
                     localStorage.removeItem('pulse_user');
                     window.dispatchEvent(new CustomEvent('pulse:auth', { detail: null }));
@@ -378,37 +592,87 @@ const Header = ({ onPropertiesClick }) => {
                     resetUnreadAll();
                   }}
                 >
-                  {lang === 'ru' ? 'Выйти' : lang === 'en' ? 'Sign out' : 'Դուրս գալ'}
+                  {lang === 'ru'
+                    ? 'Выйти'
+                    : lang === 'en'
+                    ? 'Sign out'
+                    : 'Դուրս գալ'}
                 </SignInButton>
               </>
             ) : (
               <SignInButton onClick={() => setShowAuthModal(true)}>{t.signin}</SignInButton>
             )}
 
-            <AddButton as={Link} to="/sell">{t.cta}</AddButton>
+            <AddButton as={Link} to="/sell">
+              {t.cta}
+            </AddButton>
           </div>
         </Actions>
 
-        <Burger onClick={() => setMobileOpen(prev => !prev)}>
+        <Burger onClick={() => setMobileOpen((prev) => !prev)}>
           {mobileOpen ? <FaTimes /> : <FaBars />}
         </Burger>
       </HeaderWrapper>
 
       {mobileOpen && (
         <MobileMenu>
-          <Link to="/" className="menu-item" onClick={() => setMobileOpen(false)}>{t.home}</Link>
-          <Link to="/about" className="menu-item" onClick={() => setMobileOpen(false)}>{t.about}</Link>
-          <Link to="/contacts" className="menu-item" onClick={() => setMobileOpen(false)}>
-            {t.contacts}{unread > 0 && <Badge style={{ marginLeft:8 }}>{unread}</Badge>}
+          <Link
+            to="/"
+            className="menu-item"
+            onClick={() => setMobileOpen(false)}
+          >
+            {t.home}
           </Link>
-          <button className="menu-item" onClick={handlePropertiesClick}>{t.properties}</button>
-          <button className="menu-item" onClick={() => { setShowAuthModal(true); setMobileOpen(false); }}>{t.signin}</button>
+          <Link
+            to="/about"
+            className="menu-item"
+            onClick={() => setMobileOpen(false)}
+          >
+            {t.about}
+          </Link>
+          <Link
+            to="/contacts"
+            className="menu-item"
+            onClick={() => setMobileOpen(false)}
+          >
+            {t.contacts}
+            {unread > 0 && <Badge style={{ marginLeft: 8 }}>{unread}</Badge>}
+          </Link>
+          <button className="menu-item" onClick={handlePropertiesClick}>
+            {t.properties}
+          </button>
+          <button
+            className="menu-item"
+            onClick={() => {
+              setShowAuthModal(true);
+              setMobileOpen(false);
+            }}
+          >
+            {t.signin}
+          </button>
 
-          <div style={{ display:'flex', gap:12, marginTop:8 }}>
-            <FlagBtn aria-label="Հայերեն" onClick={() => changeLang('hy')} $active={lang === 'hy'}><CountryFlag lang="hy" /></FlagBtn>
-            <FlagBtn aria-label="Русский" onClick={() => changeLang('ru')} $active={lang === 'ru'}><CountryFlag lang="ru" /></FlagBtn>
-            {}
-            <FlagBtn aria-label="English" onClick={() => changeLang('en')} $active={lang === 'en'}><CountryFlag lang="en" /></FlagBtn>
+          <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+            <FlagBtn
+              aria-label="Հայերեն"
+              onClick={() => changeLang('hy')}
+              $active={lang === 'hy'}
+            >
+              <CountryFlag lang="hy" />
+            </FlagBtn>
+            <FlagBtn
+              aria-label="Русский"
+              onClick={() => changeLang('ru')}
+              $active={lang === 'ru'}
+            >
+              <CountryFlag lang="ru" />
+            </FlagBtn>
+            <FlagBtn
+              aria-label="English"
+              onClick={() => changeLang('en')}
+              $active={lang === 'en'}
+            >
+              <CountryFlag lang="en" />
+            </FlagBtn>
           </div>
 
           <MobileCTA as={Link} to="/sell" onClick={() => setMobileOpen(false)}>
