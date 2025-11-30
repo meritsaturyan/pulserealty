@@ -10,10 +10,9 @@ import {
   Town,
   Amenity,
 } from '../db/models/index.js';
-import { requireAdmin } from './auth.js';
+// import { requireAdmin } from './auth.js'; // БОЛЬШЕ НЕ ИСПОЛЬЗУЕМ
 
 const router = Router();
-
 
 const buildInclude = () => ([
   { model: Region, attributes: ['id', 'name_en', 'name_ru', 'name_hy'] },
@@ -40,28 +39,33 @@ const buildInclude = () => ([
   },
 ]);
 
-
 const urlLike = Joi.string().trim().custom((v, helpers) => {
   if (!v) return helpers.error('any.invalid');
   if (/^https?:\/\//i.test(v)) return v;
   if (v.startsWith('/')) return v;
   if (/^data:image\/[a-z0-9+.\-]+;base64,/i.test(v)) return v;
-  return helpers.error('string.uri'); 
+  return helpers.error('string.uri');
 }, 'url-like validator')
 .messages({ 'string.uri': 'url must be http(s), /path or data:image/* base64' });
-
 
 const baseSchema = Joi.object({
   title: Joi.string().trim().min(2).max(300).required(),
   description: Joi.string().allow('', null),
-  type: Joi.string().valid('Apartment','House','Villa','Land','Commercial','Office','Other').optional(),
-  status: Joi.string().valid('for_sale','for_rent','sold','archived','reserved','other').optional(),
+  type: Joi.string()
+    .valid('Apartment','House','Villa','Land','Commercial','Office','Other')
+    .optional(),
+  status: Joi.string()
+    .valid('for_sale','for_rent','sold','archived','reserved','other')
+    .optional(),
   price: Joi.number().min(0).allow(null),
   currency: Joi.string().valid('USD','AMD','EUR','RUB').default('USD'),
   beds: Joi.number().integer().min(0).allow(null),
   baths: Joi.number().integer().min(0).allow(null),
   area_sq_m: Joi.number().min(0).allow(null),
-  floor: Joi.alternatives().try(Joi.number().integer(), Joi.string().trim().max(20)).allow(null),
+  floor: Joi.alternatives().try(
+    Joi.number().integer(),
+    Joi.string().trim().max(20)
+  ).allow(null),
   lat: Joi.number().allow(null),
   lng: Joi.number().allow(null),
   region_id: Joi.number().integer().allow(null),
@@ -88,6 +92,7 @@ const baseSchema = Joi.object({
 
 const adaptOut = (p) => (p ? (p.toJSON ? p.toJSON() : p) : null);
 
+// ----- GET list -----
 router.get('/', async (req, res) => {
   try {
     const limit = Math.min(+(req.query.limit || 50), 200);
@@ -112,7 +117,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-
+// ----- GET one -----
 router.get('/:id', async (req, res) => {
   try {
     const p = await Property.findByPk(req.params.id, { include: buildInclude() });
@@ -124,10 +129,13 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', requireAdmin, async (req, res) => {
+// ----- CREATE (без requireAdmin) -----
+router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const body = await baseSchema.validateAsync(req.body || {}, { stripUnknown: true });
+    const body = await baseSchema.validateAsync(req.body || {}, {
+      stripUnknown: true,
+    });
 
     const created = await Property.create({
       title: body.title,
@@ -139,14 +147,14 @@ router.post('/', requireAdmin, async (req, res) => {
       beds: body.beds ?? null,
       baths: body.baths ?? null,
       area_sq_m: body.area_sq_m ?? null,
-      floor: body.floor ?? null, 
+      floor: body.floor ?? null,
       lat: body.lat ?? null,
       lng: body.lng ?? null,
       region_id: body.region_id ?? null,
       town_id: body.town_id ?? null,
     }, { transaction: t });
 
-
+    // Картинки
     let coverUrl = '';
     if (Array.isArray(body.images) && body.images.length) {
       const anyCoverMarked = body.images.some(i => !!i.is_cover);
@@ -163,7 +171,7 @@ router.post('/', requireAdmin, async (req, res) => {
       }
     }
 
-
+    // Панорамы
     if (Array.isArray(body.panoramas)) {
       for (let i = 0; i < body.panoramas.length; i++) {
         const pano = body.panoramas[i];
@@ -175,23 +183,31 @@ router.post('/', requireAdmin, async (req, res) => {
       }
     }
 
-
+    // Удобства
     const amenIds = new Set();
-    if (Array.isArray(body.amenityIds)) body.amenityIds.forEach(v => amenIds.add(Number(v)));
+    if (Array.isArray(body.amenityIds))
+      body.amenityIds.forEach(v => amenIds.add(Number(v)));
     if (Array.isArray(body.amenityCodes) && body.amenityCodes.length) {
-      const list = await Amenity.findAll({ where: { code: body.amenityCodes }, transaction: t });
+      const list = await Amenity.findAll({
+        where: { code: body.amenityCodes },
+        transaction: t,
+      });
       list.forEach(a => amenIds.add(a.id));
     }
-    if (amenIds.size) await created.setAmenities(Array.from(amenIds), { transaction: t });
+    if (amenIds.size) {
+      await created.setAmenities(Array.from(amenIds), { transaction: t });
+    }
 
-
+    // cover_image
     if (coverUrl) {
       await created.update({ cover_image: coverUrl }, { transaction: t });
     }
 
     await t.commit();
 
-    const fresh = await Property.findByPk(created.id, { include: buildInclude() });
+    const fresh = await Property.findByPk(created.id, {
+      include: buildInclude(),
+    });
     res.status(201).json({ ok: true, item: adaptOut(fresh) });
   } catch (e) {
     await t.rollback();
@@ -200,15 +216,20 @@ router.post('/', requireAdmin, async (req, res) => {
   }
 });
 
-
-router.put('/:id', requireAdmin, async (req, res) => {
+// ----- UPDATE (без requireAdmin) -----
+router.put('/:id', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const id = req.params.id;
-    const body = await baseSchema.validateAsync(req.body || {}, { stripUnknown: true });
+    const body = await baseSchema.validateAsync(req.body || {}, {
+      stripUnknown: true,
+    });
 
     const prop = await Property.findByPk(id, { transaction: t });
-    if (!prop) return res.status(404).json({ ok: false, error: 'not found' });
+    if (!prop) {
+      await t.rollback();
+      return res.status(404).json({ ok: false, error: 'not found' });
+    }
 
     await prop.update({
       title: body.title,
@@ -227,7 +248,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
       town_id: body.town_id ?? null,
     }, { transaction: t });
 
-
+    // Картинки
     await PropertyImage.destroy({ where: { property_id: id }, transaction: t });
 
     let coverUrl = '';
@@ -246,7 +267,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
       }
     }
 
-
+    // Панорамы
     await Panorama.destroy({ where: { property_id: id }, transaction: t });
     if (Array.isArray(body.panoramas)) {
       for (let i = 0; i < body.panoramas.length; i++) {
@@ -259,15 +280,18 @@ router.put('/:id', requireAdmin, async (req, res) => {
       }
     }
 
-
+    // Удобства
     const amenIds = new Set();
-    if (Array.isArray(body.amenityIds)) body.amenityIds.forEach(v => amenIds.add(Number(v)));
+    if (Array.isArray(body.amenityIds))
+      body.amenityIds.forEach(v => amenIds.add(Number(v)));
     if (Array.isArray(body.amenityCodes) && body.amenityCodes.length) {
-      const list = await Amenity.findAll({ where: { code: body.amenityCodes }, transaction: t });
+      const list = await Amenity.findAll({
+        where: { code: body.amenityCodes },
+        transaction: t,
+      });
       list.forEach(a => amenIds.add(a.id));
     }
     await prop.setAmenities(Array.from(amenIds), { transaction: t });
-
 
     await prop.update({ cover_image: coverUrl || null }, { transaction: t });
 
@@ -282,18 +306,19 @@ router.put('/:id', requireAdmin, async (req, res) => {
   }
 });
 
-
-router.delete('/:id', requireAdmin, async (req, res) => {
+// ----- DELETE (без requireAdmin) -----
+router.delete('/:id', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const id = req.params.id;
-
 
     await PropertyImage.destroy({ where: { property_id: id }, transaction: t });
     await Panorama.destroy({ where: { property_id: id }, transaction: t });
 
     const p = await Property.findByPk(id, { transaction: t });
-    if (p) await p.setAmenities([], { transaction: t });
+    if (p) {
+      await p.setAmenities([], { transaction: t });
+    }
 
     await Property.destroy({ where: { id }, transaction: t });
 
