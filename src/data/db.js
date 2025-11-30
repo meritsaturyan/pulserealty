@@ -30,25 +30,30 @@ function pickRegionName(r) {
 function adaptProperty(p) {
   if (!p) return null;
 
-
   const rawImages =
-    Array.isArray(p.images) ? p.images :
-    Array.isArray(p.PropertyImages) ? p.PropertyImages :
-    Array.isArray(p.propertyImages) ? p.propertyImages :
-    [];
-
+    Array.isArray(p.images)
+      ? p.images
+      : Array.isArray(p.PropertyImages)
+      ? p.PropertyImages
+      : Array.isArray(p.propertyImages)
+      ? p.propertyImages
+      : [];
 
   const rawPanos =
-    Array.isArray(p.panoramas) ? p.panoramas :
-    Array.isArray(p.Panoramas) ? p.Panoramas :
-    Array.isArray(p.propertyPanoramas) ? p.propertyPanoramas :
-    [];
-
+    Array.isArray(p.panoramas)
+      ? p.panoramas
+      : Array.isArray(p.Panoramas)
+      ? p.Panoramas
+      : Array.isArray(p.propertyPanoramas)
+      ? p.propertyPanoramas
+      : [];
 
   const rawAmenities =
-    Array.isArray(p.amenities) ? p.amenities :
-    Array.isArray(p.Amenities) ? p.Amenities :
-    [];
+    Array.isArray(p.amenities)
+      ? p.amenities
+      : Array.isArray(p.Amenities)
+      ? p.Amenities
+      : [];
 
   const imageUrls = rawImages
     .map((i) => {
@@ -155,7 +160,6 @@ const cacheRead = () => {
     return [];
   }
 };
-
 const writeAndEmit = (arr = []) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
@@ -217,8 +221,6 @@ function cacheRemoveById(id) {
   cacheWrite(cacheRead().filter((p) => String(p.id) !== String(id)));
 }
 
-
-
 export async function getProperties(params = {}) {
   let server = [];
   try {
@@ -228,15 +230,14 @@ export async function getProperties(params = {}) {
     });
     const qs = q.toString();
     const data = await apiGetJSON(`api/properties${qs ? `?${qs}` : ''}`);
-    server = (
-      Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray(data)
-        ? data
-        : []
+    server = (Array.isArray(data?.items)
+      ? data.items
+      : Array.isArray(data)
+      ? data
+      : []
     ).map(adaptProperty);
-  } catch {
-
+  } catch (e) {
+    console.error('[getProperties] failed to load from API', e);
   }
 
   const tomb = readDeleted();
@@ -245,7 +246,7 @@ export async function getProperties(params = {}) {
   const cached = cacheRead();
   const serverIds = new Set(filteredServer.map((p) => String(p.id)));
   const locals = cached.filter(
-    (p) => p && (p._local || !serverIds.has(String(p.id)))
+    (p) => p?._local || !serverIds.has(String(p.id))
   );
 
   const byId = new Map();
@@ -255,12 +256,6 @@ export async function getProperties(params = {}) {
     .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
 
   cacheWrite(merged);
-
-
-  try {
-    syncLocalDraftsToCloud();
-  } catch {}
-
   return merged;
 }
 
@@ -272,7 +267,8 @@ export async function getProperty(id) {
       cacheUpsertOne(adapted);
     }
     return adapted;
-  } catch {
+  } catch (e) {
+    console.warn('[getProperty] fallback to cache for id', id, e);
     return cacheRead().find((p) => String(p.id) === String(id)) || null;
   }
 }
@@ -320,7 +316,6 @@ export function getPropertyPanosLocal(id) {
   const { props, idx } = ensureLocalProp(id);
   return Array.isArray(props[idx].panos) ? props[idx].panos : [];
 }
-
 export async function getPropertyPanosCloud(id) {
   try {
     const p = await getProperty(id);
@@ -383,77 +378,10 @@ export function removePropertyPano(id, removeIndex) {
   return panos;
 }
 
-export async function syncLocalPanosToCloud(propertyId) {
-  const id = String(propertyId || '');
-  if (!id) return;
 
+export async function syncLocalPanosToCloud() {
 
-  const token = getAdminToken();
-  if (!token) return;
-
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-
-  const { props, idx } = ensureLocalProp(id);
-  const current = props[idx];
-  const panos = Array.isArray(current.panos) ? current.panos : [];
-  if (!panos.length) return;
-
-  try {
-
-    const body = {
-      items: panos.map((dataUrl, sort_order) => ({ dataUrl, sort_order })),
-    };
-
-    const res = await apiJSON(
-      `api/properties/${encodeURIComponent(id)}/panoramas`,
-      {
-        method: 'PUT',
-        body,
-        auth: true,
-      }
-    );
-
-    const items = Array.isArray(res?.items)
-      ? res.items
-      : Array.isArray(res)
-      ? res
-      : [];
-
-
-    const serverUrls = items
-      .map((i) => {
-        if (!i) return null;
-        if (typeof i === 'string') return i;
-        return i.url || i.image || i.src || null;
-      })
-      .filter(Boolean);
-
-    if (!serverUrls.length) return;
-
-
-    props[idx] = {
-      ...current,
-      panos: serverUrls,
-      updatedAt: nowTs(),
-
-    };
-    writeAndEmit(props);
-
-
-    try {
-      const fresh = await getProperty(id);
-      if (fresh) cacheUpsertOne(fresh);
-    } catch {
-
-    }
-  } catch (e) {
-
-    if (isAuthError(e)) return;
-    console.warn('[db] syncLocalPanosToCloud error', e);
-  }
 }
-
-
 
 const normalizeMediaArray = (arr) =>
   (Array.isArray(arr) ? arr : [])
@@ -466,8 +394,10 @@ const normalizeMediaArray = (arr) =>
     )
     .filter(Boolean);
 
-function buildPropertyBody(payload = {}) {
-  return {
+export async function saveProperty(payload = {}) {
+  const id = payload?.id;
+
+  const body = {
     title: payload.title,
     description: payload.description || '',
     type: payload.type || 'Apartment',
@@ -490,11 +420,6 @@ function buildPropertyBody(payload = {}) {
       ? payload.amenities.map(String)
       : [],
   };
-}
-
-export async function saveProperty(payload = {}) {
-  const id = payload?.id;
-  const body = buildPropertyBody(payload);
 
   let serverItem = null;
   try {
@@ -504,22 +429,25 @@ export async function saveProperty(payload = {}) {
           body,
           auth: true,
         })
-      : await apiJSON('api/properties', {
-          method: 'POST',
-          body,
-          auth: true,
-        });
+      : await apiJSON('api/properties', { method: 'POST', body, auth: true });
     serverItem = r?.item || r;
   } catch (e) {
+    console.error('[saveProperty] failed to save to API', e);
 
-    console.warn('[db] saveProperty: fallback to local draft', e);
-    const local = adaptProperty({
-      ...body,
-      id: id || genLocalId(),
-      _local: true,
-    });
-    cacheUpsertOne(local);
-    return local;
+    if (isAuthError(e)) {
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(
+          'Չստացվեց պահպանել. ադմին մուտքը ավարտվել է կամ թույլտվությունը չկա։ Մուտք գործիր ադմին մաս և փորձիր նորից։'
+        );
+      }
+      throw e;
+    }
+
+
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert('Չստացվեց պահպանել գույքը. սերվերի սխալ։');
+    }
+    throw e;
   }
 
   const adapted = adaptProperty(serverItem);
@@ -542,56 +470,12 @@ export async function deleteProperty(id) {
     });
   } catch (e) {
     if (!(isAuthError(e) || isNotFoundErr(e))) {
-
+      console.error('[deleteProperty] API error', e);
     }
   }
   markDeleted(id);
   cacheRemoveById(id);
   return { ok: true, id };
-}
-
-
-
-async function syncLocalDraftsToCloud() {
-  let token = '';
-  try {
-    token = getAdminToken();
-  } catch {
-    token = '';
-  }
-  if (!token) return;
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-
-  const cached = cacheRead();
-  const drafts = cached.filter((p) => p && p._local);
-
-  if (!drafts.length) return;
-
-  for (const draft of drafts) {
-    try {
-      const body = buildPropertyBody(draft);
-      const r = await apiJSON('api/properties', {
-        method: 'POST',
-        body,
-        auth: true,
-      });
-      const serverItem = r?.item || r;
-      const adapted = adaptProperty(serverItem);
-      if (!adapted) continue;
-
-      cacheRemoveById(draft.id);
-      clearDeleted(draft.id);
-      clearDeleted(adapted.id);
-      cacheUpsertOne(adapted);
-
-
-      try {
-        await syncLocalPanosToCloud(adapted.id);
-      } catch {}
-    } catch (e) {
-      if (isAuthError(e)) break;
-    }
-  }
 }
 
 export const API_BASE = API_ORIGIN;
