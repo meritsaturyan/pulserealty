@@ -114,8 +114,14 @@ async function apiGetJSON(path) {
   return t ? JSON.parse(t) : null;
 }
 
+// может вернуть уже готовый Authorization-заголовок
 function getAdminToken() {
   try {
+    // Прямой заголовок ("Basic xxx" или "Bearer yyy")
+    const direct = localStorage.getItem('pulse:authHeader');
+    if (direct) return direct;
+
+    // Старые варианты — просто токен, будем слать как Bearer
     for (const k of [
       'pulse:admin:token',
       'admin_token',
@@ -134,7 +140,14 @@ async function apiJSON(path, { method = 'GET', body, auth = false } = {}) {
   if (body != null) headers['content-type'] = 'application/json';
   if (auth) {
     const tok = getAdminToken();
-    if (tok) headers.authorization = `Bearer ${tok}`;
+    if (tok) {
+      // Если уже выглядит как "Basic xxx" или "Bearer xxx" — отправляем как есть
+      if (/^(basic|bearer)\s/i.test(tok)) {
+        headers.authorization = tok;
+      } else {
+        headers.authorization = `Bearer ${tok}`;
+      }
+    }
   }
   const res = await fetch(apiUrl(path), {
     method,
@@ -299,7 +312,10 @@ export async function getProperty(id) {
     }
     return adapted;
   } catch (e) {
-    console.error('[getProperty] using cache fallback:', e);
+    // 404 — это нормально (новая запись), просто молча берём из кэша
+    if (!isNotFoundErr(e)) {
+      console.error('[getProperty] using cache fallback:', e);
+    }
     return (
       cacheRead().find((p) => String(p.id) === String(id) && !p._local) || null
     );
