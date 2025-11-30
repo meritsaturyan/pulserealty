@@ -30,30 +30,25 @@ function pickRegionName(r) {
 function adaptProperty(p) {
   if (!p) return null;
 
+
   const rawImages =
-    Array.isArray(p.images)
-      ? p.images
-      : Array.isArray(p.PropertyImages)
-      ? p.PropertyImages
-      : Array.isArray(p.propertyImages)
-      ? p.propertyImages
-      : [];
+    Array.isArray(p.images) ? p.images :
+    Array.isArray(p.PropertyImages) ? p.PropertyImages :
+    Array.isArray(p.propertyImages) ? p.propertyImages :
+    [];
+
 
   const rawPanos =
-    Array.isArray(p.panoramas)
-      ? p.panoramas
-      : Array.isArray(p.Panoramas)
-      ? p.Panoramas
-      : Array.isArray(p.propertyPanoramas)
-      ? p.propertyPanoramas
-      : [];
+    Array.isArray(p.panoramas) ? p.panoramas :
+    Array.isArray(p.Panoramas) ? p.Panoramas :
+    Array.isArray(p.propertyPanoramas) ? p.propertyPanoramas :
+    [];
+
 
   const rawAmenities =
-    Array.isArray(p.amenities)
-      ? p.amenities
-      : Array.isArray(p.Amenities)
-      ? p.Amenities
-      : [];
+    Array.isArray(p.amenities) ? p.amenities :
+    Array.isArray(p.Amenities) ? p.Amenities :
+    [];
 
   const imageUrls = rawImages
     .map((i) => {
@@ -112,6 +107,7 @@ async function apiGetJSON(path) {
   return t ? JSON.parse(t) : null;
 }
 
+
 function getAdminToken() {
   try {
     for (const k of [
@@ -119,11 +115,14 @@ function getAdminToken() {
       'admin_token',
       'admin_jwt',
       'pulse_admin_token',
+      'pulse:admin', 
     ]) {
       const v = localStorage.getItem(k);
       if (v) return v;
     }
-  } catch {}
+  } catch {
+    // ignore
+  }
   return '';
 }
 
@@ -145,7 +144,10 @@ async function apiJSON(path, { method = 'GET', body, auth = false } = {}) {
   try {
     json = txt ? JSON.parse(txt) : null;
   } catch {}
-  if (!res.ok) throw new Error(json?.error || txt || `${res.status} ${path}`);
+  if (!res.ok) {
+    console.error('apiJSON error', path, res.status, json || txt);
+    throw new Error(json?.error || txt || `${res.status} ${path}`);
+  }
   return json;
 }
 
@@ -236,8 +238,8 @@ export async function getProperties(params = {}) {
       ? data
       : []
     ).map(adaptProperty);
-  } catch (e) {
-    console.error('[getProperties] failed to load from API', e);
+  } catch {
+
   }
 
   const tomb = readDeleted();
@@ -267,8 +269,7 @@ export async function getProperty(id) {
       cacheUpsertOne(adapted);
     }
     return adapted;
-  } catch (e) {
-    console.warn('[getProperty] fallback to cache for id', id, e);
+  } catch {
     return cacheRead().find((p) => String(p.id) === String(id)) || null;
   }
 }
@@ -277,8 +278,6 @@ export async function getPropertyImages(id) {
   const p = await getProperty(id);
   return Array.isArray(p?.images) ? p.images : [];
 }
-
-
 
 function ensureLocalProp(id) {
   const props = cacheRead();
@@ -297,7 +296,6 @@ function ensureLocalProp(id) {
   }
   return { props, idx };
 }
-
 const fileToDataURL = (file) =>
   new Promise((resolve, reject) => {
     const rd = new FileReader();
@@ -338,7 +336,6 @@ export function setPropertyPanoramas(id, images = []) {
     );
   } catch {}
 }
-
 export async function addPropertyPanos(id, files = []) {
   if (!Array.isArray(files) || !files.length) return getPropertyPanosLocal(id);
   const { props, idx } = ensureLocalProp(id);
@@ -359,7 +356,6 @@ export async function addPropertyPanos(id, files = []) {
   } catch {}
   return panos;
 }
-
 export function removePropertyPano(id, removeIndex) {
   const { props, idx } = ensureLocalProp(id);
   const panos = Array.isArray(props[idx].panos) ? props[idx].panos.slice() : [];
@@ -377,8 +373,6 @@ export function removePropertyPano(id, removeIndex) {
   }
   return panos;
 }
-
-
 export async function syncLocalPanosToCloud() {
 
 }
@@ -429,30 +423,24 @@ export async function saveProperty(payload = {}) {
           body,
           auth: true,
         })
-      : await apiJSON('api/properties', { method: 'POST', body, auth: true });
+      : await apiJSON('api/properties', {
+          method: 'POST',
+          body,
+          auth: true,
+        });
     serverItem = r?.item || r;
   } catch (e) {
-    console.error('[saveProperty] failed to save to API', e);
-
-    if (isAuthError(e)) {
-      if (typeof window !== 'undefined' && window.alert) {
-        window.alert(
-          'Չստացվեց պահպանել. ադմին մուտքը ավարտվել է կամ թույլտվությունը չկա։ Մուտք գործիր ադմին մաս և փորձիր նորից։'
-        );
-      }
-      throw e;
-    }
-
-
-    if (typeof window !== 'undefined' && window.alert) {
-      window.alert('Չստացվեց պահպանել գույքը. սերվերի սխալ։');
-    }
-    throw e;
+    console.error('saveProperty(): server error, falling back to local', e);
+    const local = adaptProperty({
+      ...body,
+      id: id || genLocalId(),
+      _local: true,
+    });
+    cacheUpsertOne(local);
+    return local;
   }
 
   const adapted = adaptProperty(serverItem);
-  if (!adapted) return null;
-
   if (id && String(id) !== String(adapted.id)) {
     cacheRemoveById(id);
     clearDeleted(id);
@@ -470,7 +458,7 @@ export async function deleteProperty(id) {
     });
   } catch (e) {
     if (!(isAuthError(e) || isNotFoundErr(e))) {
-      console.error('[deleteProperty] API error', e);
+      console.error('deleteProperty error', e);
     }
   }
   markDeleted(id);
