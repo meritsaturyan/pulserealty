@@ -312,7 +312,7 @@ export async function getProperty(id) {
     }
     return adapted;
   } catch (e) {
-    // 404 — это нормально (новая запись), просто молча берём из кэша
+    // 404 — нормально для только что созданных локальных id
     if (!isNotFoundErr(e)) {
       console.error('[getProperty] using cache fallback:', e);
     }
@@ -451,7 +451,7 @@ export async function saveProperty(payload = {}) {
   // Нормализация чисел: '', undefined, null → null, остальные → Number
   const num = (v) => toNumberOrNull(v);
 
-  // Нормализация массивов строк
+  // Нормализация строковых массивов (для amenityCodes)
   const strArray = (arr) =>
     Array.isArray(arr) ? arr.map(String).filter(Boolean) : [];
 
@@ -465,6 +465,41 @@ export async function saveProperty(payload = {}) {
           })
           .filter((v) => v != null)
       : [];
+
+  // Картинки: бэкенду нужен массив объектов, хотя у нас часто просто строки
+  const normalizeImages = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    const out = [];
+    arr.forEach((item, idx) => {
+      if (!item) return;
+      if (typeof item === 'string') {
+        out.push({ url: item, sort_order: idx });
+      } else if (typeof item === 'object') {
+        const url = item.url || item.image || item.src;
+        if (!url) return;
+        const obj = { url, sort_order: item.sort_order ?? idx };
+        if (typeof item.is_cover === 'boolean') obj.is_cover = item.is_cover;
+        out.push(obj);
+      }
+    });
+    return out;
+  };
+
+  const normalizePanos = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    const out = [];
+    arr.forEach((item, idx) => {
+      if (!item) return;
+      if (typeof item === 'string') {
+        out.push({ url: item, sort_order: idx });
+      } else if (typeof item === 'object') {
+        const url = item.url || item.image || item.src;
+        if (!url) return;
+        out.push({ url, sort_order: item.sort_order ?? idx });
+      }
+    });
+    return out;
+  };
 
   const body = {
     title: payload.title,
@@ -485,13 +520,12 @@ export async function saveProperty(payload = {}) {
 
     cover_image: payload.image || payload.cover_image || '',
 
-    images: strArray(payload.images),
-    panoramas: strArray(payload.panoramas || payload.panos),
+    // МАССИВЫ ОБЪЕКТОВ, как ждёт Joi на бэке
+    images: normalizeImages(payload.images),
+    panoramas: normalizePanos(payload.panoramas || payload.panos),
 
     amenityIds: idArray(payload.amenityIds),
-    amenityCodes: Array.isArray(payload.amenities)
-      ? payload.amenities.map(String).filter(Boolean)
-      : [],
+    amenityCodes: strArray(payload.amenities),
   };
 
   try {
