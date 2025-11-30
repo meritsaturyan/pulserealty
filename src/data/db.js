@@ -1,9 +1,6 @@
 // src/data/db.js
 
-
 import { apiUrl, API_BASE as API_ORIGIN } from '../lib/apiBase';
-
-
 
 const nowTs = () => Date.now();
 const genLocalId = () =>
@@ -33,21 +30,21 @@ function pickRegionName(r) {
 function adaptProperty(p) {
   if (!p) return null;
 
-  // 1) Картинки: учитываем и backend-ассоциации
+
   const rawImages =
     Array.isArray(p.images) ? p.images :
     Array.isArray(p.PropertyImages) ? p.PropertyImages :
     Array.isArray(p.propertyImages) ? p.propertyImages :
     [];
 
-  // 2) Панорамы: тоже пробуем разные варианты
+
   const rawPanos =
     Array.isArray(p.panoramas) ? p.panoramas :
     Array.isArray(p.Panoramas) ? p.Panoramas :
     Array.isArray(p.propertyPanoramas) ? p.propertyPanoramas :
     [];
 
-  // 3) Удобства: вдруг приходят как Amenities
+
   const rawAmenities =
     Array.isArray(p.amenities) ? p.amenities :
     Array.isArray(p.Amenities) ? p.Amenities :
@@ -100,9 +97,6 @@ function adaptProperty(p) {
   };
 }
 
-
-
-
 async function apiGetJSON(path) {
   const r = await fetch(apiUrl(path), {
     cache: 'no-store',
@@ -150,8 +144,6 @@ async function apiJSON(path, { method = 'GET', body, auth = false } = {}) {
   return json;
 }
 
-
-
 const STORAGE_KEY = 'pulse:properties';
 const STORAGE_DELETED = 'pulse:properties:deleted';
 
@@ -163,6 +155,7 @@ const cacheRead = () => {
     return [];
   }
 };
+
 const writeAndEmit = (arr = []) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
@@ -198,7 +191,7 @@ function clearDeleted(id) {
   writeDeleted(s);
 }
 
-// <- экспорт нужен в коде
+
 export function getPropertiesCached() {
   return cacheRead();
 }
@@ -213,7 +206,7 @@ function cacheWrite(items = []) {
 function cacheUpsertOne(p) {
   if (!p) return;
   const tomb = readDeleted();
-  if (tomb.has(String(p.id))) return; 
+  if (tomb.has(String(p.id))) return;
   const list = cacheRead();
   const i = list.findIndex((x) => String(x.id) === String(p.id));
   if (i >= 0) list[i] = { ...list[i], ...p, updatedAt: nowTs() };
@@ -235,9 +228,15 @@ export async function getProperties(params = {}) {
     });
     const qs = q.toString();
     const data = await apiGetJSON(`api/properties${qs ? `?${qs}` : ''}`);
-    server = (Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : []).map(adaptProperty);
+    server = (
+      Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data)
+        ? data
+        : []
+    ).map(adaptProperty);
   } catch {
-    
+
   }
 
   const tomb = readDeleted();
@@ -246,7 +245,7 @@ export async function getProperties(params = {}) {
   const cached = cacheRead();
   const serverIds = new Set(filteredServer.map((p) => String(p.id)));
   const locals = cached.filter(
-    (p) => p?._local || !serverIds.has(String(p.id))
+    (p) => p && (p._local || !serverIds.has(String(p.id)))
   );
 
   const byId = new Map();
@@ -256,6 +255,12 @@ export async function getProperties(params = {}) {
     .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
 
   cacheWrite(merged);
+
+
+  try {
+    syncLocalDraftsToCloud();
+  } catch {}
+
   return merged;
 }
 
@@ -264,7 +269,6 @@ export async function getProperty(id) {
     const data = await apiGetJSON(`api/properties/${encodeURIComponent(id)}`);
     const adapted = adaptProperty(data);
     if (adapted) {
-
       cacheUpsertOne(adapted);
     }
     return adapted;
@@ -297,6 +301,7 @@ function ensureLocalProp(id) {
   }
   return { props, idx };
 }
+
 const fileToDataURL = (file) =>
   new Promise((resolve, reject) => {
     const rd = new FileReader();
@@ -311,13 +316,12 @@ export const getPropertyPanos = async (id) => {
 };
 export const getPropertyPanoramas = getPropertyPanos;
 
-
 export function getPropertyPanosLocal(id) {
   const { props, idx } = ensureLocalProp(id);
   return Array.isArray(props[idx].panos) ? props[idx].panos : [];
 }
-export async function getPropertyPanosCloud(id) {
 
+export async function getPropertyPanosCloud(id) {
   try {
     const p = await getProperty(id);
     return Array.isArray(p?.panos) ? p.panos : [];
@@ -339,6 +343,7 @@ export function setPropertyPanoramas(id, images = []) {
     );
   } catch {}
 }
+
 export async function addPropertyPanos(id, files = []) {
   if (!Array.isArray(files) || !files.length) return getPropertyPanosLocal(id);
   const { props, idx } = ensureLocalProp(id);
@@ -359,6 +364,7 @@ export async function addPropertyPanos(id, files = []) {
   } catch {}
   return panos;
 }
+
 export function removePropertyPano(id, removeIndex) {
   const { props, idx } = ensureLocalProp(id);
   const panos = Array.isArray(props[idx].panos) ? props[idx].panos.slice() : [];
@@ -376,8 +382,75 @@ export function removePropertyPano(id, removeIndex) {
   }
   return panos;
 }
-export async function syncLocalPanosToCloud() {
 
+export async function syncLocalPanosToCloud(propertyId) {
+  const id = String(propertyId || '');
+  if (!id) return;
+
+
+  const token = getAdminToken();
+  if (!token) return;
+
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+  const { props, idx } = ensureLocalProp(id);
+  const current = props[idx];
+  const panos = Array.isArray(current.panos) ? current.panos : [];
+  if (!panos.length) return;
+
+  try {
+
+    const body = {
+      items: panos.map((dataUrl, sort_order) => ({ dataUrl, sort_order })),
+    };
+
+    const res = await apiJSON(
+      `api/properties/${encodeURIComponent(id)}/panoramas`,
+      {
+        method: 'PUT',
+        body,
+        auth: true,
+      }
+    );
+
+    const items = Array.isArray(res?.items)
+      ? res.items
+      : Array.isArray(res)
+      ? res
+      : [];
+
+
+    const serverUrls = items
+      .map((i) => {
+        if (!i) return null;
+        if (typeof i === 'string') return i;
+        return i.url || i.image || i.src || null;
+      })
+      .filter(Boolean);
+
+    if (!serverUrls.length) return;
+
+
+    props[idx] = {
+      ...current,
+      panos: serverUrls,
+      updatedAt: nowTs(),
+
+    };
+    writeAndEmit(props);
+
+
+    try {
+      const fresh = await getProperty(id);
+      if (fresh) cacheUpsertOne(fresh);
+    } catch {
+
+    }
+  } catch (e) {
+
+    if (isAuthError(e)) return;
+    console.warn('[db] syncLocalPanosToCloud error', e);
+  }
 }
 
 
@@ -393,10 +466,8 @@ const normalizeMediaArray = (arr) =>
     )
     .filter(Boolean);
 
-export async function saveProperty(payload = {}) {
-  const id = payload?.id; 
-
-  const body = {
+function buildPropertyBody(payload = {}) {
+  return {
     title: payload.title,
     description: payload.description || '',
     type: payload.type || 'Apartment',
@@ -419,6 +490,11 @@ export async function saveProperty(payload = {}) {
       ? payload.amenities.map(String)
       : [],
   };
+}
+
+export async function saveProperty(payload = {}) {
+  const id = payload?.id;
+  const body = buildPropertyBody(payload);
 
   let serverItem = null;
   try {
@@ -428,21 +504,32 @@ export async function saveProperty(payload = {}) {
           body,
           auth: true,
         })
-      : await apiJSON('api/properties', { method: 'POST', body, auth: true });
+      : await apiJSON('api/properties', {
+          method: 'POST',
+          body,
+          auth: true,
+        });
     serverItem = r?.item || r;
   } catch (e) {
 
-    const local = adaptProperty({ ...body, id: id || genLocalId(), _local: true });
+    console.warn('[db] saveProperty: fallback to local draft', e);
+    const local = adaptProperty({
+      ...body,
+      id: id || genLocalId(),
+      _local: true,
+    });
     cacheUpsertOne(local);
     return local;
   }
 
   const adapted = adaptProperty(serverItem);
+  if (!adapted) return null;
+
   if (id && String(id) !== String(adapted.id)) {
     cacheRemoveById(id);
     clearDeleted(id);
   }
-  clearDeleted(adapted.id); 
+  clearDeleted(adapted.id);
   cacheUpsertOne(adapted);
   return adapted;
 }
@@ -463,5 +550,48 @@ export async function deleteProperty(id) {
   return { ok: true, id };
 }
 
+
+
+async function syncLocalDraftsToCloud() {
+  let token = '';
+  try {
+    token = getAdminToken();
+  } catch {
+    token = '';
+  }
+  if (!token) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+  const cached = cacheRead();
+  const drafts = cached.filter((p) => p && p._local);
+
+  if (!drafts.length) return;
+
+  for (const draft of drafts) {
+    try {
+      const body = buildPropertyBody(draft);
+      const r = await apiJSON('api/properties', {
+        method: 'POST',
+        body,
+        auth: true,
+      });
+      const serverItem = r?.item || r;
+      const adapted = adaptProperty(serverItem);
+      if (!adapted) continue;
+
+      cacheRemoveById(draft.id);
+      clearDeleted(draft.id);
+      clearDeleted(adapted.id);
+      cacheUpsertOne(adapted);
+
+
+      try {
+        await syncLocalPanosToCloud(adapted.id);
+      } catch {}
+    } catch (e) {
+      if (isAuthError(e)) break;
+    }
+  }
+}
 
 export const API_BASE = API_ORIGIN;
