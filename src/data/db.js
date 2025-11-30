@@ -1,22 +1,18 @@
 // src/data/db.js
+
 import { apiUrl, API_BASE as API_ORIGIN } from '../lib/apiBase';
 
 const nowTs = () => Date.now();
 const genLocalId = () =>
   `loc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
 const toNumberOrNull = (v) =>
   v === '' || v == null ? null : Number.isFinite(+v) ? +v : null;
-
 const isAuthError = (e) =>
   /401|unauthori[sz]ed|missing\/invalid.*auth/i.test(
     String(e?.message || e || '')
   );
-
 const isNotFoundErr = (e) =>
   /404|not\s*found/i.test(String(e?.message || e || ''));
-
-// ---------- helpers for names ----------
 
 function pickAmenityName(a) {
   if (!a) return '';
@@ -31,27 +27,36 @@ function pickRegionName(r) {
   return r.name_hy || r.name_ru || r.name_en || '';
 }
 
-// ---------- adapter ----------
-
 function adaptProperty(p) {
   if (!p) return null;
 
+
   const rawImages =
-    Array.isArray(p.images) ? p.images :
-    Array.isArray(p.PropertyImages) ? p.PropertyImages :
-    Array.isArray(p.propertyImages) ? p.propertyImages :
-    [];
+    Array.isArray(p.images)
+      ? p.images
+      : Array.isArray(p.PropertyImages)
+      ? p.PropertyImages
+      : Array.isArray(p.propertyImages)
+      ? p.propertyImages
+      : [];
+
 
   const rawPanos =
-    Array.isArray(p.panoramas) ? p.panoramas :
-    Array.isArray(p.Panoramas) ? p.Panoramas :
-    Array.isArray(p.propertyPanoramas) ? p.propertyPanoramas :
-    [];
+    Array.isArray(p.panoramas)
+      ? p.panoramas
+      : Array.isArray(p.Panoramas)
+      ? p.Panoramas
+      : Array.isArray(p.propertyPanoramas)
+      ? p.propertyPanoramas
+      : [];
+
 
   const rawAmenities =
-    Array.isArray(p.amenities) ? p.amenities :
-    Array.isArray(p.Amenities) ? p.Amenities :
-    [];
+    Array.isArray(p.amenities)
+      ? p.amenities
+      : Array.isArray(p.Amenities)
+      ? p.Amenities
+      : [];
 
   const imageUrls = rawImages
     .map((i) => {
@@ -96,11 +101,9 @@ function adaptProperty(p) {
     Region: p.Region ? { ...p.Region, title: pickRegionName(p.Region) } : null,
     Town: p.Town ? { ...p.Town, title: pickTownName(p.Town) } : null,
     updatedAt: nowTs(),
-    _local: Boolean(p._local),
+    _local: Boolean(p._local), 
   };
 }
-
-
 
 async function apiGetJSON(path) {
   const r = await fetch(apiUrl(path), {
@@ -114,14 +117,12 @@ async function apiGetJSON(path) {
 
 function getAdminToken() {
   try {
-
-    const keys = [
+    for (const k of [
       'pulse:admin:token',
-      'pulse_admin_token',
       'admin_token',
       'admin_jwt',
-    ];
-    for (const k of keys) {
+      'pulse_admin_token',
+    ]) {
       const v = localStorage.getItem(k);
       if (v) return v;
     }
@@ -136,27 +137,18 @@ async function apiJSON(path, { method = 'GET', body, auth = false } = {}) {
     const tok = getAdminToken();
     if (tok) headers.authorization = `Bearer ${tok}`;
   }
-
   const res = await fetch(apiUrl(path), {
     method,
     headers,
     credentials: 'include',
     body: body != null ? JSON.stringify(body) : undefined,
   });
-
   const txt = await res.text();
   let json = null;
   try {
     json = txt ? JSON.parse(txt) : null;
   } catch {}
-
-  if (!res.ok) {
-    const msg = json?.error || txt || `${res.status} ${path}`;
-    const err = new Error(msg);
-    err.status = res.status;
-    throw err;
-  }
-
+  if (!res.ok) throw new Error(json?.error || txt || `${res.status} ${path}`);
   return json;
 }
 
@@ -164,6 +156,7 @@ async function apiJSON(path, { method = 'GET', body, auth = false } = {}) {
 
 const STORAGE_KEY = 'pulse:properties';
 const STORAGE_DELETED = 'pulse:properties:deleted';
+
 
 const cacheRead = () => {
   try {
@@ -209,42 +202,49 @@ function clearDeleted(id) {
   writeDeleted(s);
 }
 
+function filterPublic(list = []) {
+  const tomb = readDeleted();
+  return (Array.isArray(list) ? list : []).filter(
+    (p) => p && !tomb.has(String(p.id)) && !p._local
+  );
+}
+
 
 export function getPropertiesCached() {
-  return cacheRead();
+  return filterPublic(cacheRead());
 }
 
 function cacheWrite(items = []) {
-  const tomb = readDeleted();
-  const filtered = (Array.isArray(items) ? items : []).filter(
-    (p) => !tomb.has(String(p?.id))
-  );
+
+  const filtered = filterPublic(items);
   writeAndEmit(filtered);
 }
 
 function cacheUpsertOne(p) {
   if (!p) return;
-  const tomb = readDeleted();
-  if (tomb.has(String(p.id))) return;
-
   const list = cacheRead();
   const i = list.findIndex((x) => String(x.id) === String(p.id));
-  const payload = { ...p, updatedAt: nowTs() };
+  const next = { ...p, updatedAt: nowTs() };
 
-  if (i >= 0) list[i] = payload;
-  else list.unshift(payload);
+  if (i >= 0) {
+    list[i] = { ...list[i], ...next };
+  } else {
+    list.unshift(next);
+  }
 
-  cacheWrite(list);
+
+  writeAndEmit(list);
 }
 
 function cacheRemoveById(id) {
-  cacheWrite(cacheRead().filter((p) => String(p.id) !== String(id)));
+  const list = cacheRead().filter((p) => String(p.id) !== String(id));
+
+  cacheWrite(list);
 }
 
 
 
 export async function getProperties(params = {}) {
-  let server = [];
   try {
     const q = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
@@ -253,44 +253,33 @@ export async function getProperties(params = {}) {
     const qs = q.toString();
     const data = await apiGetJSON(`api/properties${qs ? `?${qs}` : ''}`);
 
-    const items = Array.isArray(data?.items) ? data.items :
-      Array.isArray(data) ? data : [];
+    const server = (
+      Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data)
+        ? data
+        : []
+    ).map(adaptProperty);
 
-    server = items.map(adaptProperty);
+    cacheWrite(server);
+    return getPropertiesCached();
   } catch (e) {
-    console.warn('[getProperties] API error, using cache only:', e);
+    console.error('[getProperties] failed, returning cached list', e);
+
+    return getPropertiesCached();
   }
-
-  const tomb = readDeleted();
-  const filteredServer = server.filter((p) => !tomb.has(String(p.id)));
-
-  const cached = cacheRead();
-  const serverIds = new Set(filteredServer.map((p) => String(p.id)));
-
-
-  const locals = cached.filter(
-    (p) => p?._local || !serverIds.has(String(p.id))
-  );
-
-  const byId = new Map();
-  for (const p of [...locals, ...filteredServer]) byId.set(String(p.id), p);
-
-  const merged = Array.from(byId.values())
-    .filter((p) => !tomb.has(String(p.id)))
-    .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
-
-  cacheWrite(merged);
-  return merged;
 }
 
 export async function getProperty(id) {
   try {
     const data = await apiGetJSON(`api/properties/${encodeURIComponent(id)}`);
     const adapted = adaptProperty(data);
-    if (adapted) cacheUpsertOne(adapted);
+    if (adapted) {
+      cacheUpsertOne(adapted);
+    }
     return adapted;
-  } catch (e) {
-    console.warn('[getProperty] fallback to cache for id=', id, e);
+  } catch {
+
     return cacheRead().find((p) => String(p.id) === String(id)) || null;
   }
 }
@@ -401,11 +390,10 @@ export function removePropertyPano(id, removeIndex) {
   return panos;
 }
 
-export async function syncLocalPanosToCloud() {
 
-}
+export async function syncLocalPanosToCloud() {}
 
-// ---------- save / delete ----------
+
 
 const normalizeMediaArray = (arr) =>
   (Array.isArray(arr) ? arr : [])
@@ -446,7 +434,6 @@ export async function saveProperty(payload = {}) {
   };
 
   let serverItem = null;
-
   try {
     const r = id
       ? await apiJSON(`api/properties/${encodeURIComponent(id)}`, {
@@ -454,28 +441,21 @@ export async function saveProperty(payload = {}) {
           body,
           auth: true,
         })
-      : await apiJSON('api/properties', {
-          method: 'POST',
-          body,
-          auth: true,
-        });
-
+      : await apiJSON('api/properties', { method: 'POST', body, auth: true });
     serverItem = r?.item || r;
   } catch (e) {
-    console.error('[saveProperty] Failed to save on server:', e);
-
+    console.error('[saveProperty] failed to save property', e);
 
     throw e;
   }
 
   const adapted = adaptProperty(serverItem);
-
+  if (!adapted) return null;
 
   if (id && String(id) !== String(adapted.id)) {
     cacheRemoveById(id);
     clearDeleted(id);
   }
-
   clearDeleted(adapted.id);
   cacheUpsertOne(adapted);
   return adapted;
@@ -489,7 +469,7 @@ export async function deleteProperty(id) {
     });
   } catch (e) {
     if (!(isAuthError(e) || isNotFoundErr(e))) {
-      console.error('[deleteProperty] API error:', e);
+      console.error('[deleteProperty] failed', e);
     }
   }
   markDeleted(id);
