@@ -1,18 +1,22 @@
 // src/data/db.js
-
 import { apiUrl, API_BASE as API_ORIGIN } from '../lib/apiBase';
 
 const nowTs = () => Date.now();
 const genLocalId = () =>
   `loc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
 const toNumberOrNull = (v) =>
   v === '' || v == null ? null : Number.isFinite(+v) ? +v : null;
+
 const isAuthError = (e) =>
   /401|unauthori[sz]ed|missing\/invalid.*auth/i.test(
     String(e?.message || e || '')
   );
+
 const isNotFoundErr = (e) =>
   /404|not\s*found/i.test(String(e?.message || e || ''));
+
+// ---------- helpers for names ----------
 
 function pickAmenityName(a) {
   if (!a) return '';
@@ -27,9 +31,10 @@ function pickRegionName(r) {
   return r.name_hy || r.name_ru || r.name_en || '';
 }
 
+// ---------- adapter ----------
+
 function adaptProperty(p) {
   if (!p) return null;
-
 
   const rawImages =
     Array.isArray(p.images) ? p.images :
@@ -37,13 +42,11 @@ function adaptProperty(p) {
     Array.isArray(p.propertyImages) ? p.propertyImages :
     [];
 
-
   const rawPanos =
     Array.isArray(p.panoramas) ? p.panoramas :
     Array.isArray(p.Panoramas) ? p.Panoramas :
     Array.isArray(p.propertyPanoramas) ? p.propertyPanoramas :
     [];
-
 
   const rawAmenities =
     Array.isArray(p.amenities) ? p.amenities :
@@ -97,6 +100,8 @@ function adaptProperty(p) {
   };
 }
 
+
+
 async function apiGetJSON(path) {
   const r = await fetch(apiUrl(path), {
     cache: 'no-store',
@@ -107,22 +112,20 @@ async function apiGetJSON(path) {
   return t ? JSON.parse(t) : null;
 }
 
-
 function getAdminToken() {
   try {
-    for (const k of [
+
+    const keys = [
       'pulse:admin:token',
+      'pulse_admin_token',
       'admin_token',
       'admin_jwt',
-      'pulse_admin_token',
-      'pulse:admin', 
-    ]) {
+    ];
+    for (const k of keys) {
       const v = localStorage.getItem(k);
       if (v) return v;
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
   return '';
 }
 
@@ -133,23 +136,31 @@ async function apiJSON(path, { method = 'GET', body, auth = false } = {}) {
     const tok = getAdminToken();
     if (tok) headers.authorization = `Bearer ${tok}`;
   }
+
   const res = await fetch(apiUrl(path), {
     method,
     headers,
     credentials: 'include',
     body: body != null ? JSON.stringify(body) : undefined,
   });
+
   const txt = await res.text();
   let json = null;
   try {
     json = txt ? JSON.parse(txt) : null;
   } catch {}
+
   if (!res.ok) {
-    console.error('apiJSON error', path, res.status, json || txt);
-    throw new Error(json?.error || txt || `${res.status} ${path}`);
+    const msg = json?.error || txt || `${res.status} ${path}`;
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
   }
+
   return json;
 }
+
+
 
 const STORAGE_KEY = 'pulse:properties';
 const STORAGE_DELETED = 'pulse:properties:deleted';
@@ -162,6 +173,7 @@ const cacheRead = () => {
     return [];
   }
 };
+
 const writeAndEmit = (arr = []) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
@@ -209,19 +221,27 @@ function cacheWrite(items = []) {
   );
   writeAndEmit(filtered);
 }
+
 function cacheUpsertOne(p) {
   if (!p) return;
   const tomb = readDeleted();
   if (tomb.has(String(p.id))) return;
+
   const list = cacheRead();
   const i = list.findIndex((x) => String(x.id) === String(p.id));
-  if (i >= 0) list[i] = { ...list[i], ...p, updatedAt: nowTs() };
-  else list.unshift({ ...p, updatedAt: nowTs() });
+  const payload = { ...p, updatedAt: nowTs() };
+
+  if (i >= 0) list[i] = payload;
+  else list.unshift(payload);
+
   cacheWrite(list);
 }
+
 function cacheRemoveById(id) {
   cacheWrite(cacheRead().filter((p) => String(p.id) !== String(id)));
 }
+
+
 
 export async function getProperties(params = {}) {
   let server = [];
@@ -232,14 +252,13 @@ export async function getProperties(params = {}) {
     });
     const qs = q.toString();
     const data = await apiGetJSON(`api/properties${qs ? `?${qs}` : ''}`);
-    server = (Array.isArray(data?.items)
-      ? data.items
-      : Array.isArray(data)
-      ? data
-      : []
-    ).map(adaptProperty);
-  } catch {
 
+    const items = Array.isArray(data?.items) ? data.items :
+      Array.isArray(data) ? data : [];
+
+    server = items.map(adaptProperty);
+  } catch (e) {
+    console.warn('[getProperties] API error, using cache only:', e);
   }
 
   const tomb = readDeleted();
@@ -247,12 +266,15 @@ export async function getProperties(params = {}) {
 
   const cached = cacheRead();
   const serverIds = new Set(filteredServer.map((p) => String(p.id)));
+
+
   const locals = cached.filter(
     (p) => p?._local || !serverIds.has(String(p.id))
   );
 
   const byId = new Map();
   for (const p of [...locals, ...filteredServer]) byId.set(String(p.id), p);
+
   const merged = Array.from(byId.values())
     .filter((p) => !tomb.has(String(p.id)))
     .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
@@ -265,11 +287,10 @@ export async function getProperty(id) {
   try {
     const data = await apiGetJSON(`api/properties/${encodeURIComponent(id)}`);
     const adapted = adaptProperty(data);
-    if (adapted) {
-      cacheUpsertOne(adapted);
-    }
+    if (adapted) cacheUpsertOne(adapted);
     return adapted;
-  } catch {
+  } catch (e) {
+    console.warn('[getProperty] fallback to cache for id=', id, e);
     return cacheRead().find((p) => String(p.id) === String(id)) || null;
   }
 }
@@ -278,6 +299,8 @@ export async function getPropertyImages(id) {
   const p = await getProperty(id);
   return Array.isArray(p?.images) ? p.images : [];
 }
+
+
 
 function ensureLocalProp(id) {
   const props = cacheRead();
@@ -296,6 +319,7 @@ function ensureLocalProp(id) {
   }
   return { props, idx };
 }
+
 const fileToDataURL = (file) =>
   new Promise((resolve, reject) => {
     const rd = new FileReader();
@@ -314,6 +338,7 @@ export function getPropertyPanosLocal(id) {
   const { props, idx } = ensureLocalProp(id);
   return Array.isArray(props[idx].panos) ? props[idx].panos : [];
 }
+
 export async function getPropertyPanosCloud(id) {
   try {
     const p = await getProperty(id);
@@ -336,6 +361,7 @@ export function setPropertyPanoramas(id, images = []) {
     );
   } catch {}
 }
+
 export async function addPropertyPanos(id, files = []) {
   if (!Array.isArray(files) || !files.length) return getPropertyPanosLocal(id);
   const { props, idx } = ensureLocalProp(id);
@@ -356,6 +382,7 @@ export async function addPropertyPanos(id, files = []) {
   } catch {}
   return panos;
 }
+
 export function removePropertyPano(id, removeIndex) {
   const { props, idx } = ensureLocalProp(id);
   const panos = Array.isArray(props[idx].panos) ? props[idx].panos.slice() : [];
@@ -373,9 +400,12 @@ export function removePropertyPano(id, removeIndex) {
   }
   return panos;
 }
+
 export async function syncLocalPanosToCloud() {
 
 }
+
+// ---------- save / delete ----------
 
 const normalizeMediaArray = (arr) =>
   (Array.isArray(arr) ? arr : [])
@@ -416,6 +446,7 @@ export async function saveProperty(payload = {}) {
   };
 
   let serverItem = null;
+
   try {
     const r = id
       ? await apiJSON(`api/properties/${encodeURIComponent(id)}`, {
@@ -428,23 +459,23 @@ export async function saveProperty(payload = {}) {
           body,
           auth: true,
         });
+
     serverItem = r?.item || r;
   } catch (e) {
-    console.error('saveProperty(): server error, falling back to local', e);
-    const local = adaptProperty({
-      ...body,
-      id: id || genLocalId(),
-      _local: true,
-    });
-    cacheUpsertOne(local);
-    return local;
+    console.error('[saveProperty] Failed to save on server:', e);
+
+
+    throw e;
   }
 
   const adapted = adaptProperty(serverItem);
+
+
   if (id && String(id) !== String(adapted.id)) {
     cacheRemoveById(id);
     clearDeleted(id);
   }
+
   clearDeleted(adapted.id);
   cacheUpsertOne(adapted);
   return adapted;
@@ -458,7 +489,7 @@ export async function deleteProperty(id) {
     });
   } catch (e) {
     if (!(isAuthError(e) || isNotFoundErr(e))) {
-      console.error('deleteProperty error', e);
+      console.error('[deleteProperty] API error:', e);
     }
   }
   markDeleted(id);
