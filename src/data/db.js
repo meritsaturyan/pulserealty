@@ -204,7 +204,15 @@ function clearDeleted(id) {
 
 // публичный доступ к кэшу (например RecentProperties использует)
 export function getPropertiesCached() {
-  return cacheRead();
+  const raw = cacheRead();
+  const filtered = (Array.isArray(raw) ? raw : []).filter((p) => !p?._local);
+
+  // Чистим старые _local-объекты из стораджа
+  if (filtered.length !== raw.length) {
+    cacheWrite(filtered);
+  }
+
+  return filtered;
 }
 
 function cacheWrite(items = []) {
@@ -424,34 +432,49 @@ export async function syncLocalPanosToCloud() {
 export async function saveProperty(payload = {}) {
   const id = payload?.id;
 
-  // Отправляем на сервер то, что формирует форма,
-  // без лишних преобразований формата.
+  // Нормализация чисел: '', undefined, null → null, остальные → Number
+  const num = (v) => toNumberOrNull(v);
+
+  // Нормализация массивов строк
+  const strArray = (arr) =>
+    Array.isArray(arr) ? arr.map(String).filter(Boolean) : [];
+
+  // Нормализация id удобств (числа)
+  const idArray = (arr) =>
+    Array.isArray(arr)
+      ? arr
+          .map((v) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : null;
+          })
+          .filter((v) => v != null)
+      : [];
+
   const body = {
     title: payload.title,
     description: payload.description || '',
     type: payload.type || 'Apartment',
     status: payload.status || 'for_sale',
-    price: payload.price ?? null,
+
+    price: num(payload.price),
     currency: payload.currency || 'USD',
-    beds: payload.beds ?? null,
-    baths: payload.baths ?? null,
-    area_sq_m: payload.area_sq_m ?? payload.area ?? null,
-    floor: payload.floor ?? null,
-    lat: payload.lat ?? null,
-    lng: payload.lng ?? null,
-    region_id: payload.region_id ?? null,
-    town_id: payload.town_id ?? null,
+    beds: num(payload.beds),
+    baths: num(payload.baths),
+    area_sq_m: num(payload.area_sq_m ?? payload.area),
+    floor: num(payload.floor),
+    lat: num(payload.lat),
+    lng: num(payload.lng),
+    region_id: num(payload.region_id),
+    town_id: num(payload.town_id),
+
     cover_image: payload.image || payload.cover_image || '',
-    // Главное изменение: отправляем как есть
-    images: Array.isArray(payload.images) ? payload.images : [],
-    panoramas: Array.isArray(payload.panoramas || payload.panos)
-      ? (payload.panoramas || payload.panos)
-      : [],
-    amenityIds: Array.isArray(payload.amenityIds)
-      ? payload.amenityIds
-      : [],
+
+    images: strArray(payload.images),
+    panoramas: strArray(payload.panoramas || payload.panos),
+
+    amenityIds: idArray(payload.amenityIds),
     amenityCodes: Array.isArray(payload.amenities)
-      ? payload.amenities.map(String)
+      ? payload.amenities.map(String).filter(Boolean)
       : [],
   };
 
@@ -484,8 +507,8 @@ export async function saveProperty(payload = {}) {
     return adapted;
   } catch (e) {
     console.error('[saveProperty] failed:', e);
-    // НИКАКИХ локальных объектов — если не сохранилось на сервере,
-    // просто кидаем ошибку, форма покажет "Չստացվեց պահել".
+    // Если не сохранилось на сервере — просто кидаем ошибку,
+    // форма покажет "Չստացվեց պահել".
     throw e;
   }
 }
