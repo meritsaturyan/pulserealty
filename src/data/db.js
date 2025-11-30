@@ -256,7 +256,10 @@ function cacheRemoveById(id) {
 // ---------- high-level API ----------
 
 export async function getProperties(params = {}) {
+  const tomb = readDeleted();
   let server = [];
+  let serverOk = false;
+
   try {
     const q = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
@@ -275,32 +278,30 @@ export async function getProperties(params = {}) {
       .map(adaptProperty)
       .filter(Boolean)
       .filter((p) => !p._local); // на всякий случай
+
+    serverOk = true;
   } catch (e) {
     console.error('[getProperties] server error, using cache only:', e);
   }
 
-  const tomb = readDeleted();
-  const filteredServer = server.filter((p) => !tomb.has(String(p.id)));
-
-  const cached = cacheRead();
-  const serverIds = new Set(filteredServer.map((p) => String(p.id)));
-
-  // Берём из кэша только те, которых нет на сервере и которые не _local
-  const extraFromCache = cached.filter(
-    (p) => !serverIds.has(String(p.id)) && !p._local
-  );
-
-  const byId = new Map();
-  for (const p of [...filteredServer, ...extraFromCache]) {
-    byId.set(String(p.id), p);
+  if (serverOk) {
+    // ✅ Сервер — источник правды.
+    // Не подтягиваем из кэша ничего лишнего, только чистим и кэшируем серверный список.
+    const filteredServer = server.filter((p) => !tomb.has(String(p.id)));
+    const sorted = filteredServer.sort(
+      (a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0)
+    );
+    cacheWrite(sorted);
+    return sorted;
   }
 
-  const merged = Array.from(byId.values())
+  // ❌ Сервер недоступен — показываем то, что было в кэше, но без удалённых.
+  const cached = cacheRead()
+    .filter((p) => !p?._local)
     .filter((p) => !tomb.has(String(p.id)))
     .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
 
-  cacheWrite(merged);
-  return merged;
+  return cached;
 }
 
 export async function getProperty(id) {
@@ -312,10 +313,14 @@ export async function getProperty(id) {
     }
     return adapted;
   } catch (e) {
-    // 404 — нормально для только что созданных локальных id
-    if (!isNotFoundErr(e)) {
-      console.error('[getProperty] using cache fallback:', e);
+    if (isNotFoundErr(e)) {
+      // ✅ Сервер говорит "нет такого" — не показываем из кэша
+      markDeleted(id);
+      cacheRemoveById(id);
+      return null;
     }
+
+    console.error('[getProperty] using cache fallback:', e);
     return (
       cacheRead().find((p) => String(p.id) === String(id) && !p._local) || null
     );
@@ -588,6 +593,7 @@ export async function deleteProperty(id) {
       console.error('[deleteProperty] failed:', e);
     }
   }
+  // Локально тоже помечаем как удалённый
   markDeleted(id);
   cacheRemoveById(id);
   return { ok: true, id };
