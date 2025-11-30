@@ -38,22 +38,22 @@ function adaptProperty(p) {
   // 1) Картинки: учитываем разные форматы с бэка
   const rawImages =
     Array.isArray(p.images) ? p.images :
-    Array.isArray(p.PropertyImages) ? p.PropertyImages :
-    Array.isArray(p.propertyImages) ? p.propertyImages :
-    [];
+      Array.isArray(p.PropertyImages) ? p.PropertyImages :
+        Array.isArray(p.propertyImages) ? p.propertyImages :
+          [];
 
   // 2) Панорамы: тоже разные варианты
   const rawPanos =
     Array.isArray(p.panoramas) ? p.panoramas :
-    Array.isArray(p.Panoramas) ? p.Panoramas :
-    Array.isArray(p.propertyPanoramas) ? p.propertyPanoramas :
-    [];
+      Array.isArray(p.Panoramas) ? p.Panoramas :
+        Array.isArray(p.propertyPanoramas) ? p.propertyPanoramas :
+          [];
 
   // 3) Удобства
   const rawAmenities =
     Array.isArray(p.amenities) ? p.amenities :
-    Array.isArray(p.Amenities) ? p.Amenities :
-    [];
+      Array.isArray(p.Amenities) ? p.Amenities :
+        [];
 
   const imageUrls = rawImages
     .map((i) => {
@@ -131,7 +131,7 @@ function getAdminToken() {
       const v = localStorage.getItem(k);
       if (v) return v;
     }
-  } catch {}
+  } catch { }
   return '';
 }
 
@@ -159,7 +159,7 @@ async function apiJSON(path, { method = 'GET', body, auth = false } = {}) {
   let json = null;
   try {
     json = txt ? JSON.parse(txt) : null;
-  } catch {}
+  } catch { }
   if (!res.ok) {
     throw new Error(json?.error || txt || `${res.status} ${path}`);
   }
@@ -184,7 +184,7 @@ const writeAndEmit = (arr = []) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
     window.dispatchEvent(new Event('pulse:properties-changed'));
-  } catch {}
+  } catch { }
 };
 
 function readDeleted() {
@@ -202,7 +202,7 @@ function writeDeleted(set) {
       JSON.stringify(Array.from(set || []))
     );
     window.dispatchEvent(new Event('pulse:properties-changed'));
-  } catch {}
+  } catch { }
 }
 function markDeleted(id) {
   const s = readDeleted();
@@ -268,8 +268,8 @@ export async function getProperties(params = {}) {
     const rawList = Array.isArray(data?.items)
       ? data.items
       : Array.isArray(data)
-      ? data
-      : [];
+        ? data
+        : [];
 
     server = rawList
       .map(adaptProperty)
@@ -382,7 +382,7 @@ export function setPropertyPanoramas(id, images = []) {
         detail: { propertyId: String(id), count: clean.length },
       })
     );
-  } catch {}
+  } catch { }
 }
 
 export async function addPropertyPanos(id, files = []) {
@@ -413,7 +413,7 @@ export async function addPropertyPanos(id, files = []) {
         detail: { propertyId: String(id), count: panos.length },
       })
     );
-  } catch {}
+  } catch { }
   return panos;
 }
 
@@ -432,7 +432,7 @@ export function removePropertyPano(id, removeIndex) {
           detail: { propertyId: String(id), count: panos.length },
         })
       );
-    } catch {}
+    } catch { }
   }
   return panos;
 }
@@ -446,7 +446,19 @@ export async function syncLocalPanosToCloud() {
 // ВАЖНО: Никаких _local тут, только сервер
 
 export async function saveProperty(payload = {}) {
-  const id = payload?.id;
+  // Решаем, это существующая запись или новая
+  const rawId = payload?.id;
+  let serverId = null;
+  let isExisting = false;
+
+  if (rawId != null) {
+    const n = Number(rawId);
+    // считаем "реальным" id только небольшие положительные числа
+    if (Number.isFinite(n) && n > 0 && n < 1_000_000_000) {
+      serverId = n;
+      isExisting = true;
+    }
+  }
 
   // Нормализация чисел: '', undefined, null → null, остальные → Number
   const num = (v) => toNumberOrNull(v);
@@ -459,11 +471,11 @@ export async function saveProperty(payload = {}) {
   const idArray = (arr) =>
     Array.isArray(arr)
       ? arr
-          .map((v) => {
-            const n = Number(v);
-            return Number.isFinite(n) ? n : null;
-          })
-          .filter((v) => v != null)
+        .map((v) => {
+          const n = Number(v);
+          return Number.isFinite(n) ? n : null;
+        })
+        .filter((v) => v != null)
       : [];
 
   // Картинки: бэкенду нужен массив объектов, хотя у нас часто просто строки
@@ -529,17 +541,17 @@ export async function saveProperty(payload = {}) {
   };
 
   try {
-    const r = id
-      ? await apiJSON(`api/properties/${encodeURIComponent(id)}`, {
-          method: 'PUT',
-          body,
-          auth: true,
-        })
+    const r = isExisting && serverId != null
+      ? await apiJSON(`api/properties/${encodeURIComponent(serverId)}`, {
+        method: 'PUT',
+        body,
+        auth: true,
+      })
       : await apiJSON('api/properties', {
-          method: 'POST',
-          body,
-          auth: true,
-        });
+        method: 'POST',
+        body,
+        auth: true,
+      });
 
     const serverItem = r?.item || r;
     const adapted = adaptProperty(serverItem);
@@ -548,10 +560,12 @@ export async function saveProperty(payload = {}) {
       throw new Error('Empty response from server');
     }
 
-    if (id && String(id) !== String(adapted.id)) {
-      cacheRemoveById(id);
-      clearDeleted(id);
+    // если id меняется (старый локальный → новый серверный), чистим кэш по старому
+    if (isExisting && serverId != null && String(serverId) !== String(adapted.id)) {
+      cacheRemoveById(serverId);
+      clearDeleted(serverId);
     }
+
     clearDeleted(adapted.id);
     cacheUpsertOne(adapted);
     return adapted;
