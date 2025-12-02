@@ -1,16 +1,45 @@
 // src/pages/Contacts.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { FaFacebookF, FaTelegramPlane, FaInstagram, FaMapMarkerAlt, FaEnvelope } from 'react-icons/fa';
+import {
+  FaFacebookF,
+  FaTelegramPlane,
+  FaInstagram,
+  FaMapMarkerAlt,
+  FaEnvelope,
+} from 'react-icons/fa';
 import { io } from 'socket.io-client';
 
+// ---------- API / WS BASE DETECTION ----------
 
 function normalizeHostname(host = '') {
   const map = {
-    'а':'a','с':'c','е':'e','о':'o','р':'p','х':'x','к':'k','у':'y','м':'m','т':'t','н':'h','в':'v',
-    'А':'A','С':'C','Е':'E','О':'O','Р':'P','Х':'X','К':'K','У':'Y','М':'M','Т':'T','Н':'H','В':'V',
+    а: 'a',
+    с: 'c',
+    е: 'e',
+    о: 'o',
+    р: 'p',
+    х: 'x',
+    к: 'k',
+    у: 'y',
+    м: 'm',
+    т: 't',
+    н: 'h',
+    в: 'v',
+    А: 'A',
+    С: 'C',
+    Е: 'E',
+    О: 'O',
+    Р: 'P',
+    Х: 'X',
+    К: 'K',
+    У: 'Y',
+    М: 'M',
+    Т: 'T',
+    Н: 'H',
+    В: 'V',
   };
-  return String(host).replace(/./g, ch => map[ch] ?? ch);
+  return String(host).replace(/./g, (ch) => map[ch] ?? ch);
 }
 function sanitizeBase(u = '') {
   try {
@@ -30,18 +59,20 @@ const { API_BASE, WS_BASE, WS_PATH } = (() => {
   origin.hostname = normalizeHostname(origin.hostname);
   const isLocal = /^(localhost|127\.0\.0\.1)$/i.test(origin.hostname);
 
-
   const apiDev = isLocal ? `http://localhost:5050` : origin.origin;
-  const wsDev  = isLocal ? `ws://localhost:5050`  : origin.origin;
+  const wsDev = isLocal ? `ws://localhost:5050` : origin.origin;
 
   const apiBase = sanitizeBase(w.__PULSE_API_BASE || apiDev);
-  const wsBase  = sanitizeBase(w.__PULSE_WS_BASE  || wsDev);
-  const wsPath  = w.__PULSE_SOCKET_PATH || w.__PULSE_WS_PATH || '/socket.io';
+  const wsBase = sanitizeBase(w.__PULSE_WS_BASE || wsDev);
+  const wsPath = w.__PULSE_SOCKET_PATH || w.__PULSE_WS_PATH || '/socket.io';
 
-  try { console.log('[CONTACTS] API_BASE=', apiBase, 'WS_BASE=', wsBase, 'WS_PATH=', wsPath); } catch {}
+  try {
+    console.log('[CONTACTS] API_BASE=', apiBase, 'WS_BASE=', wsBase, 'WS_PATH=', wsPath);
+  } catch {}
   return { API_BASE: apiBase, WS_BASE: wsBase, WS_PATH: wsPath };
 })();
 
+// ---------- TEXTS ----------
 
 const TEXT = {
   en: {
@@ -84,7 +115,8 @@ const TEXT = {
     typeHere: 'Գրեք ձեր հաղորդագրությունը…',
     send: 'Ուղարկել',
     hello: 'Բարև! Ինչպե՞ս կարող ենք օգնել Ձեզ:',
-    thanks: 'Շնորհակալություն ձեր հաղորդագրության համար, շուտով կկապվենք ձեզ հետ։',
+    thanks:
+      'Շնորհակալություն ձեր հաղորդագրության համար, շուտով կկապվենք ձեզ հետ։',
     telDisplay: '+374 94 444 940',
     telHref: 'tel:+37494444940',
     mapsQuery: 'Հանրապետության փողոց 62, Երևան, Հայաստան',
@@ -97,16 +129,27 @@ const TEXT = {
 const getLang = () =>
   document.documentElement.lang || localStorage.getItem('lang') || 'hy';
 
+// ---------- STYLES ----------
+
 const PageWrapper = styled.div`
   padding: calc(var(--header-h, 90px) + 20px) 20px 40px;
   max-width: 1200px;
   margin: 0 auto;
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    padding: calc(var(--header-h, 90px) + 8px) 8px 16px;
+  }
 `;
 
 const Title = styled.h2`
   text-align: center;
   color: #f0ae00;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
+
+  @media (max-width: 768px) {
+    margin-bottom: 20px;
+  }
 `;
 
 const ContactGrid = styled.div`
@@ -114,7 +157,11 @@ const ContactGrid = styled.div`
   gap: 40px;
   flex-wrap: wrap;
   justify-content: center;
-  @media (max-width: 768px) { flex-direction: column; }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
+  }
 `;
 
 const InfoSection = styled.div`
@@ -122,12 +169,16 @@ const InfoSection = styled.div`
   min-width: 280px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   color: #f0ae00;
+
+  @media (max-width: 768px) {
+    order: 2; /* на мобилке контактная инфа под чатом */
+  }
 `;
 
 const GlassPanel = styled.div`
-  background: rgba(255, 255, 255, 0.60);
+  background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(10px) saturate(140%);
   -webkit-backdrop-filter: blur(10px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.45);
@@ -141,22 +192,38 @@ const ContactLine = styled.div`
   gap: 10px;
   font-size: clamp(16px, 1.9vw, 20px);
   line-height: 1.35;
-  color: #1A3D4D;
-  svg { color: inherit; flex: 0 0 auto; }
+  color: #1a3d4d;
+
+  svg {
+    color: inherit;
+    flex: 0 0 auto;
+  }
 `;
 
 const ContactLink = styled.a`
   color: inherit;
   text-decoration: none;
-  &:hover { text-decoration: underline; }
+
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 const SocialIcons = styled.div`
   display: flex;
   gap: 16px;
-  margin-top: 10px;
-  a { color: #f0ae00; font-size: 20px; transition: transform .2s;
-      &:hover { transform: scale(1.2); color: #e6a700; } }
+  margin-top: 6px;
+
+  a {
+    color: #f0ae00;
+    font-size: 20px;
+    transition: transform 0.2s;
+
+    &:hover {
+      transform: scale(1.2);
+      color: #e6a700;
+    }
+  }
 `;
 
 const CallButton = styled.a`
@@ -168,8 +235,11 @@ const CallButton = styled.a`
   border-radius: 6px;
   text-decoration: none;
   font-weight: bold;
-  transition: background-color .3s;
-  &:hover { background-color: #e6a700; }
+  transition: background-color 0.3s;
+
+  &:hover {
+    background-color: #e6a700;
+  }
 `;
 
 const ChatContainer = styled.div`
@@ -177,54 +247,111 @@ const ChatContainer = styled.div`
   min-width: 360px;
   max-width: 100%;
   border: 1px solid #ccc;
-  border-radius: 10px;
-  height: 480px;
+  border-radius: 12px;
+  height: 520px;
   display: flex;
   flex-direction: column;
   background: #fff;
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    order: 1;
+    min-width: 0;
+    width: 100%;
+
+    /* ⚠️ главное изменение: делаем чат высоким на телефоне */
+    height: auto;
+    min-height: 520px;          /* можно 500–600, если хочешь ещё выше */
+
+    max-height: none;
+    margin: 0 -8px;             /* во всю ширину экрана */
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
 `;
+
 
 const ChatTop = styled.div`
   padding: 10px 14px;
   background: #f0ae00;
   color: #fff;
   font-weight: 800;
-  border-radius: 10px 10px 0 0;
+  border-radius: 12px 12px 0 0;
+
+  @media (max-width: 768px) {
+    border-radius: 0;
+  }
 `;
 
 const Messages = styled.div`
-  flex: 1; overflow-y: auto; padding: 12px; gap: 6px; display: flex; flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  gap: 6px;
+  display: flex;
+  flex-direction: column;
   background: #fafafa;
 `;
 
 const Msg = styled.div`
-  align-self: ${({$mine}) => ($mine ? 'flex-end' : 'flex-start')};
-  background: ${({$mine}) => ($mine ? '#e8f4ff' : '#fff')};
+  align-self: ${({ $mine }) => ($mine ? 'flex-end' : 'flex-start')};
+  background: ${({ $mine }) => ($mine ? '#e8f4ff' : '#fff')};
   color: #222;
   border-radius: 12px;
   padding: 8px 10px;
   max-width: 75%;
-  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  @media (max-width: 768px) {
+    max-width: 92%;
+    font-size: 14px;
+  }
 `;
 
 const MsgMeta = styled.div`
-  font-size: 11px; color:#999; margin-bottom: 2px;
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 2px;
 `;
 
 const InputRow = styled.form`
-  display:flex; gap:8px; padding:10px; border-top:1px solid #eee; background:#fff; border-radius: 0 0 10px 10px;
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid #eee;
+  background: #fff;
+  border-radius: 0 0 12px 12px;
+
+  @media (max-width: 768px) {
+    border-radius: 0;
+  }
 `;
 
 const ChatInput = styled.input`
-  flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #ccc;
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 14px;
 `;
 
 const SendButton = styled.button`
-  padding: 10px 16px; background-color: #f0ae00; color: white;
-  border: none; border-radius: 6px; font-weight: bold; cursor: pointer;
-  &:hover { background-color: #e6a700; }
+  padding: 10px 16px;
+  background-color: #f0ae00;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: #e6a700;
+  }
 `;
 
+// ---------- API HELPERS ----------
 
 async function apiGetJSON(path) {
   const res = await fetch(`${API_BASE}${path}`, { cache: 'no-store' });
@@ -234,8 +361,8 @@ async function apiGetJSON(path) {
 async function apiPostJSON(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'content-type':'application/json' },
-    body: JSON.stringify(body || {})
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body || {}),
   });
   if (!res.ok) throw new Error(`POST ${path} ${res.status}`);
   return res.json();
@@ -245,8 +372,10 @@ const getThreadId = () =>
   localStorage.getItem('pulse:chat:threadId') ||
   localStorage.getItem('pulse:chat:tid') ||
   localStorage.getItem('chat:threadId') ||
+  localStorage.getItem('pulse:chat:localThreadId') ||
   '';
 
+// ---------- SOCKET ----------
 
 function getClientSocket() {
   if (window.__pulseClientSock) return window.__pulseClientSock;
@@ -257,10 +386,14 @@ function getClientSocket() {
     autoConnect: true,
     reconnection: true,
   });
-  sock.on('connect_error', (e) => console.warn('[Contacts] WS connect error:', e?.message || e));
+  sock.on('connect_error', (e) =>
+    console.warn('[Contacts] WS connect error:', e?.message || e)
+  );
   window.__pulseClientSock = sock;
   return sock;
 }
+
+// ---------- COMPONENT ----------
 
 const Contacts = () => {
   const [lang, setLang] = useState(getLang());
@@ -285,7 +418,7 @@ const Contacts = () => {
   const seenRef = useRef(new Set());
   const threadIdRef = useRef('');
 
-
+  // фикс высоты с учётом хедера
   useEffect(() => {
     const h = document.querySelector('header')?.offsetHeight || 90;
     document.documentElement.style.setProperty('--header-h', `${h}px`);
@@ -300,25 +433,46 @@ const Contacts = () => {
     };
   }, []);
 
-  const ensureThread = useMemo(() => async () => {
-    let tid = getThreadId();
-    if (!tid) {
-      const userMeta = (() => {
-        try { return JSON.parse(localStorage.getItem('pulse_user') || 'null') || {}; } catch { return {}; }
-      })();
-      const r = await apiPostJSON('/api/chat/start', userMeta);
-      tid = r?.threadId || '';
-      if (tid) {
-        localStorage.setItem('pulse:chat:threadId', tid);
-        localStorage.setItem('pulse:chat:tid', tid);
-        localStorage.setItem('chat:threadId', tid);
+  // ensureThread с fallback, если /api/chat/start даёт 403 или ошибку
+  const ensureThread = useMemo(
+    () => async () => {
+      let tid = getThreadId();
+
+      if (!tid) {
+        try {
+          const userMeta = (() => {
+            try {
+              return JSON.parse(localStorage.getItem('pulse_user') || 'null') || {};
+            } catch {
+              return {};
+            }
+          })();
+
+          const r = await apiPostJSON('/api/chat/start', userMeta);
+          tid = r?.threadId || '';
+          if (tid) {
+            localStorage.setItem('pulse:chat:threadId', tid);
+            localStorage.setItem('pulse:chat:tid', tid);
+            localStorage.setItem('chat:threadId', tid);
+          }
+        } catch (e) {
+          console.warn('[Contacts] /api/chat/start failed:', e);
+
+          // fallback: локальный threadId, чтобы send() не ломался
+          tid =
+            localStorage.getItem('pulse:chat:localThreadId') ||
+            `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          localStorage.setItem('pulse:chat:localThreadId', tid);
+        }
       }
-    }
-    threadIdRef.current = tid;
-    return tid;
-  }, []);
 
+      threadIdRef.current = tid;
+      return tid;
+    },
+    []
+  );
 
+  // загрузка истории и подписка на сокет
   useEffect(() => {
     let unsub = () => {};
     (async () => {
@@ -329,13 +483,17 @@ const Contacts = () => {
         const r = await apiGetJSON(`/api/chat/${tid}/messages`);
         const items = (Array.isArray(r?.items) ? r.items : r) || [];
         const s = seenRef.current;
-        items.forEach(m => {
+        items.forEach((m) => {
           const key = `${m.id || ''}|${m.ts || ''}|${m.sender}|${m.text}`;
           s.add(key);
         });
         setMessages(items);
-        queueMicrotask(() => listRef.current?.scrollTo({ top: 1e9, behavior: 'auto' }));
-      } catch { /* ignore */ }
+        queueMicrotask(() =>
+          listRef.current?.scrollTo({ top: 1e9, behavior: 'auto' })
+        );
+      } catch {
+        // если локальный thread или 404 — просто без истории
+      }
 
       const sock = getClientSocket();
       sock.emit('join', { role: 'user', threadId: tid });
@@ -347,11 +505,15 @@ const Contacts = () => {
         const s = seenRef.current;
         if (s.has(key)) return;
         s.add(key);
-        setMessages(prev => {
-          const cleaned = prev.filter(x => !(x?._temp && x.sender === m.sender && x.text === m.text));
+        setMessages((prev) => {
+          const cleaned = prev.filter(
+            (x) => !(x?._temp && x.sender === m.sender && x.text === m.text)
+          );
           return [...cleaned, m];
         });
-        queueMicrotask(() => listRef.current?.scrollTo({ top: 1e9, behavior: 'smooth' }));
+        queueMicrotask(() =>
+          listRef.current?.scrollTo({ top: 1e9, behavior: 'smooth' })
+        );
       };
 
       sock.on('message', onMsg);
@@ -364,18 +526,47 @@ const Contacts = () => {
   const send = async (e) => {
     e?.preventDefault?.();
     const txt = String(input || '').trim();
-    const tid = threadIdRef.current;
-    if (!txt || !tid) return;
+    if (!txt) return;
+
+    // если thread ещё не создан — создаём прямо при отправке
+    let tid = threadIdRef.current;
+    if (!tid) {
+      tid = await ensureThread();
+      if (!tid) {
+        const fallbackTemp = {
+          id: `local-${Date.now()}`,
+          sender: 'user',
+          text: txt,
+          ts: Date.now(),
+          threadId: 'local',
+          _temp: true,
+        };
+        setMessages((prev) => [...prev, fallbackTemp]);
+        setInput('');
+        return;
+      }
+    }
 
     const tempId = `c-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const mine = { id: tempId, sender: 'user', text: txt, ts: Date.now(), threadId: tid, _temp: true };
-    setMessages(prev => [...prev, mine]);
-    queueMicrotask(() => listRef.current?.scrollTo({ top: 1e9, behavior: 'smooth' }));
+    const mine = {
+      id: tempId,
+      sender: 'user',
+      text: txt,
+      ts: Date.now(),
+      threadId: tid,
+      _temp: true,
+    };
+    setMessages((prev) => [...prev, mine]);
+    queueMicrotask(() =>
+      listRef.current?.scrollTo({ top: 1e9, behavior: 'smooth' })
+    );
 
     try {
       const sock = getClientSocket();
       sock.emit('message', { threadId: tid, text: txt, sender: 'user' });
-    } catch { /* ignore */ }
+    } catch {
+      // если сокет не доступен — просто оставляем локально
+    }
 
     setInput('');
   };
@@ -385,7 +576,38 @@ const Contacts = () => {
       <Title>{t.title}</Title>
 
       <ContactGrid>
-        {/* left column */}
+        {/* chat первым на мобиле */}
+        <ChatContainer>
+          <ChatTop>{t.chatTitle}</ChatTop>
+
+          <Messages ref={listRef}>
+            {messages.length === 0 && (
+              <Msg $mine={false}>
+                <div style={{ whiteSpace: 'pre-wrap' }}>{t.hello}</div>
+              </Msg>
+            )}
+            {messages.map((m) => (
+              <Msg
+                key={m.id || `${m.ts}-${m.sender}-${m.text}`}
+                $mine={m.sender === 'user'}
+              >
+                <MsgMeta>{m.sender === 'admin' ? t.admin : t.you}</MsgMeta>
+                <div style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>
+              </Msg>
+            ))}
+          </Messages>
+
+          <InputRow onSubmit={send}>
+            <ChatInput
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t.typeHere}
+            />
+            <SendButton type="submit">{t.send}</SendButton>
+          </InputRow>
+        </ChatContainer>
+
+        {/* contacts */}
         <InfoSection>
           <CallButton href={t.telHref} aria-label={`${t.call} ${t.telDisplay}`}>
             {t.call}
@@ -400,8 +622,11 @@ const Contacts = () => {
             <ContactLine style={{ marginTop: 10 }}>
               <FaMapMarkerAlt />
               <ContactLink
-                href={`https://www.google.com/maps?q=${encodeURIComponent(t.mapsQuery)}`}
-                target="_blank" rel="noopener noreferrer"
+                href={`https://www.google.com/maps?q=${encodeURIComponent(
+                  t.mapsQuery
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 {t.address}
               </ContactLink>
@@ -409,45 +634,32 @@ const Contacts = () => {
           </GlassPanel>
 
           <SocialIcons>
-            <a href="https://www.facebook.com/share/1FWngzVzdx/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" title="Facebook">
+            <a
+              href="https://www.facebook.com/share/1FWngzVzdx/?mibextid=wwXIfr"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Facebook"
+            >
               <FaFacebookF />
             </a>
-            <a href="https://t.me/Pulse_realty" target="_blank" rel="noopener noreferrer" title="Telegram">
+            <a
+              href="https://t.me/Pulse_realty"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Telegram"
+            >
               <FaTelegramPlane />
             </a>
-            <a href="https://www.instagram.com/pulse_realty?igsh=MTRucWprdXIydGdwcQ==" target="_blank" rel="noopener noreferrer" title="Instagram">
+            <a
+              href="https://www.instagram.com/pulse_realty?igsh=MTRucWprdXIydGdwcQ=="
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Instagram"
+            >
               <FaInstagram />
             </a>
           </SocialIcons>
         </InfoSection>
-
-        {/* chat */}
-        <ChatContainer>
-          <ChatTop>{t.chatTitle}</ChatTop>
-
-          <Messages ref={listRef}>
-            {messages.length === 0 && (
-              <Msg $mine={false}>
-                <div style={{whiteSpace:'pre-wrap'}}>{t.hello}</div>
-              </Msg>
-            )}
-            {messages.map((m) => (
-              <Msg key={m.id || `${m.ts}-${m.sender}-${m.text}`} $mine={m.sender === 'user'}>
-                <MsgMeta>{m.sender === 'admin' ? t.admin : t.you}</MsgMeta>
-                <div style={{whiteSpace:'pre-wrap'}}>{m.text}</div>
-              </Msg>
-            ))}
-          </Messages>
-
-          <InputRow onSubmit={send}>
-            <ChatInput
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={t.typeHere}
-            />
-            <SendButton type="submit">{t.send}</SendButton>
-          </InputRow>
-        </ChatContainer>
       </ContactGrid>
     </PageWrapper>
   );

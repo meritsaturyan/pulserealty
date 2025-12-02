@@ -1661,6 +1661,20 @@ const PropertyDetails = () => {
 
   const areaVal = property.area ?? property.sqft ?? '';
 
+  // >>> НОВОЕ: аккуратно берём этаж (7/10 и т.п.)
+  const floorLabel =
+    property.floor ||
+    property.floorLabel ||
+    property.level ||
+    property.buildingFloors ||
+    property.totalFloors ||
+    property.floors ||
+    property.floorCount ||
+    property.floorNumber ||
+    property.storey ||
+    '—';
+  // <<<
+
   const coverSrc =
     images[
       Math.min(imgIndex, Math.max(images.length - 1, 0))
@@ -1713,12 +1727,7 @@ const PropertyDetails = () => {
                 {t.area}
               </InfoItem>
               <InfoItem>
-                <FaBuilding />{' '}
-                {property.floor ??
-                  property.level ??
-                  property.floorNumber ??
-                  property.storey ??
-                  '—'}
+                <FaBuilding /> {floorLabel}
               </InfoItem>
             </Info>
 
@@ -1868,7 +1877,7 @@ const PropertyDetails = () => {
         </Right>
 
         <LeftExtras>
-          {/* Если нужно вернуть удобства, раскомментируй блок ниже */}
+          {/* Եթե պետք է վերադարձնել հարմարությունները, ապա բացիր այս բլոկը */}
           {/* <Box>
             <BoxTitle>{t.amenitiesTitle}</BoxTitle>
             <AmenList>

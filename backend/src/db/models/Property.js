@@ -24,7 +24,6 @@ export default (sequelize) => {
         defaultValue: '',
       },
 
-
       type: {
         type: DataTypes.TEXT,
         allowNull: true,
@@ -63,9 +62,9 @@ export default (sequelize) => {
         allowNull: true,
       },
 
-
+      // ЭТАЖ как текст, чтобы можно было хранить "4/16"
       floor: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.TEXT,
         allowNull: true,
       },
 
@@ -101,9 +100,7 @@ export default (sequelize) => {
       tableName: 'properties',
       underscored: true,
 
-
       timestamps: true,
-
 
       indexes: [
         { fields: ['status'] },
@@ -112,7 +109,6 @@ export default (sequelize) => {
         { fields: ['town_id'] },
         { fields: ['price'] },
       ],
-
 
       defaultScope: {
         order: [['id', 'DESC']],

@@ -203,7 +203,7 @@ const TEXT = {
   hy: {
     heroTitle: 'Գտե՛ք Ձեր հաջորդ տունը',
     heroSubtitle: '',
-    forRent: 'Վարձով',
+    forRent: 'Վարձակալություն',
     forSale: 'Վաճառք',
     propertyLabel: 'Որոնում',
     keywordsPlaceholder: 'Որոնել...',
@@ -740,9 +740,9 @@ const Home = ({ propertiesRef: propRef }) => {
       <StatsWrapper>
         <StatsTitle>{t.statsTitle}</StatsTitle>
         <StatsGrid>
-          <StatCard><StatNumber>320+</StatNumber><StatLabel>{t.housesSold}</StatLabel></StatCard>
-          <StatCard><StatNumber>210+</StatNumber><StatLabel>{t.homesRented}</StatLabel></StatCard>
-          <StatCard><StatNumber>500+</StatNumber><StatLabel>{t.happyClients}</StatLabel></StatCard>
+          <StatCard><StatNumber>100+</StatNumber><StatLabel>{t.housesSold}</StatLabel></StatCard>
+          <StatCard><StatNumber>250+</StatNumber><StatLabel>{t.homesRented}</StatLabel></StatCard>
+          <StatCard><StatNumber>300+</StatNumber><StatLabel>{t.happyClients}</StatLabel></StatCard>
           <StatCard><StatNumber>75+</StatNumber><StatLabel>{t.managedProperties}</StatLabel></StatCard>
         </StatsGrid>
       </StatsWrapper>
@@ -757,43 +757,4 @@ const Home = ({ propertiesRef: propRef }) => {
 };
 
 export default Home;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

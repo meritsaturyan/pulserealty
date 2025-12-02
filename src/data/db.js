@@ -13,7 +13,8 @@ const isAuthError = (e) =>
     String(e?.message || e || '')
   );
 const isNotFoundErr = (e) =>
-  /404|not\s*found/i.test(String(e?.message || e || ''));
+  /404|not\s*found/i.test(String(e?.message || e || '')
+  );
 
 // ---------- helpers for names ----------
 
@@ -86,7 +87,13 @@ function adaptProperty(p) {
     area_sq_m,
     area: area_sq_m,
     sqft: p.sqft ?? null,
-    floor: p.floor ?? null,
+
+    // floor ВСЕГДА строка (если есть)
+    floor:
+      p.floor != null && p.floor !== ''
+        ? String(p.floor)
+        : null,
+
     lat: p.lat ?? null,
     lng: p.lng ?? null,
     region_id: p.region_id ?? null,
@@ -131,7 +138,7 @@ function getAdminToken() {
       const v = localStorage.getItem(k);
       if (v) return v;
     }
-  } catch { }
+  } catch {}
   return '';
 }
 
@@ -159,7 +166,7 @@ async function apiJSON(path, { method = 'GET', body, auth = false } = {}) {
   let json = null;
   try {
     json = txt ? JSON.parse(txt) : null;
-  } catch { }
+  } catch {}
   if (!res.ok) {
     throw new Error(json?.error || txt || `${res.status} ${path}`);
   }
@@ -184,7 +191,7 @@ const writeAndEmit = (arr = []) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
     window.dispatchEvent(new Event('pulse:properties-changed'));
-  } catch { }
+  } catch {}
 };
 
 function readDeleted() {
@@ -202,7 +209,7 @@ function writeDeleted(set) {
       JSON.stringify(Array.from(set || []))
     );
     window.dispatchEvent(new Event('pulse:properties-changed'));
-  } catch { }
+  } catch {}
 }
 function markDeleted(id) {
   const s = readDeleted();
@@ -271,8 +278,8 @@ export async function getProperties(params = {}) {
     const rawList = Array.isArray(data?.items)
       ? data.items
       : Array.isArray(data)
-        ? data
-        : [];
+      ? data
+      : [];
 
     server = rawList
       .map(adaptProperty)
@@ -387,7 +394,7 @@ export function setPropertyPanoramas(id, images = []) {
         detail: { propertyId: String(id), count: clean.length },
       })
     );
-  } catch { }
+  } catch {}
 }
 
 export async function addPropertyPanos(id, files = []) {
@@ -418,7 +425,7 @@ export async function addPropertyPanos(id, files = []) {
         detail: { propertyId: String(id), count: panos.length },
       })
     );
-  } catch { }
+  } catch {}
   return panos;
 }
 
@@ -437,7 +444,7 @@ export function removePropertyPano(id, removeIndex) {
           detail: { propertyId: String(id), count: panos.length },
         })
       );
-    } catch { }
+    } catch {}
   }
   return panos;
 }
@@ -476,11 +483,11 @@ export async function saveProperty(payload = {}) {
   const idArray = (arr) =>
     Array.isArray(arr)
       ? arr
-        .map((v) => {
-          const n = Number(v);
-          return Number.isFinite(n) ? n : null;
-        })
-        .filter((v) => v != null)
+          .map((v) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : null;
+          })
+          .filter((v) => v != null)
       : [];
 
   // Картинки: бэкенду нужен массив объектов, хотя у нас часто просто строки
@@ -529,7 +536,13 @@ export async function saveProperty(payload = {}) {
     beds: num(payload.beds),
     baths: num(payload.baths),
     area_sq_m: num(payload.area_sq_m ?? payload.area),
-    floor: num(payload.floor),
+
+    // floor отправляем как строку, чтобы "4/16" не превращался в число
+    floor:
+      payload.floor != null && payload.floor !== ''
+        ? String(payload.floor)
+        : null,
+
     lat: num(payload.lat),
     lng: num(payload.lng),
     region_id: num(payload.region_id),
@@ -546,17 +559,18 @@ export async function saveProperty(payload = {}) {
   };
 
   try {
-    const r = isExisting && serverId != null
-      ? await apiJSON(`api/properties/${encodeURIComponent(serverId)}`, {
-        method: 'PUT',
-        body,
-        auth: true,
-      })
-      : await apiJSON('api/properties', {
-        method: 'POST',
-        body,
-        auth: true,
-      });
+    const r =
+      isExisting && serverId != null
+        ? await apiJSON(`api/properties/${encodeURIComponent(serverId)}`, {
+            method: 'PUT',
+            body,
+            auth: true,
+          })
+        : await apiJSON('api/properties', {
+            method: 'POST',
+            body,
+            auth: true,
+          });
 
     const serverItem = r?.item || r;
     const adapted = adaptProperty(serverItem);
