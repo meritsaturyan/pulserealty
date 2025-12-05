@@ -203,7 +203,7 @@ const TEXT = {
   hy: {
     heroTitle: 'Գտե՛ք Ձեր հաջորդ տունը',
     heroSubtitle: '',
-    forRent: 'Վարձակալություն',
+    forRent: 'Վարձով',
     forSale: 'Վաճառք',
     propertyLabel: 'Որոնում',
     keywordsPlaceholder: 'Որոնել...',
@@ -740,9 +740,9 @@ const Home = ({ propertiesRef: propRef }) => {
       <StatsWrapper>
         <StatsTitle>{t.statsTitle}</StatsTitle>
         <StatsGrid>
-          <StatCard><StatNumber>100+</StatNumber><StatLabel>{t.housesSold}</StatLabel></StatCard>
-          <StatCard><StatNumber>250+</StatNumber><StatLabel>{t.homesRented}</StatLabel></StatCard>
-          <StatCard><StatNumber>300+</StatNumber><StatLabel>{t.happyClients}</StatLabel></StatCard>
+          <StatCard><StatNumber>320+</StatNumber><StatLabel>{t.housesSold}</StatLabel></StatCard>
+          <StatCard><StatNumber>210+</StatNumber><StatLabel>{t.homesRented}</StatLabel></StatCard>
+          <StatCard><StatNumber>500+</StatNumber><StatLabel>{t.happyClients}</StatLabel></StatCard>
           <StatCard><StatNumber>75+</StatNumber><StatLabel>{t.managedProperties}</StatLabel></StatCard>
         </StatsGrid>
       </StatsWrapper>
@@ -750,11 +750,50 @@ const Home = ({ propertiesRef: propRef }) => {
       { }
       <ContactsSection>
         <h3>{t.callUs} +374 94444940</h3>
-        <p>💬 Live Chat: <a href="https://t.me/+37494444940" target="_blank" rel="noopener noreferrer">{t.openTelegram}</a></p>
+        <p>💬 Live Chat: <a href="https://t.me/your_support_bot" target="_blank" rel="noopener noreferrer">{t.openTelegram}</a></p>
       </ContactsSection>
     </>
   );
 };
 
 export default Home;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

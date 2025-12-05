@@ -1,9 +1,9 @@
 // src/components/RecentProperties.jsx
 import { useEffect, useMemo, useRef, useState } from 'react';
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 import { FaBed, FaBath, FaRulerCombined, FaBuilding } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { getProperties, getPropertiesCached } from '../data/db';
+import { getProperties, getPropertiesCached, subscribeProperties } from '../data/db';
 
 const T = {
   en: {
@@ -48,98 +48,17 @@ const STATUS_LABELS = {
 };
 
 const TYPE_LABELS = {
-  en: {
-    Apartment: 'Apartment',
-    House: 'House',
-    'Commercial Space': 'Commercial Space',
-    Land: 'Land',
-  },
-  ru: {
-    Apartment: 'Квартира',
-    House: 'Дом',
-    'Commercial Space': 'Коммерческое помещение',
-    Land: 'Земля',
-  },
-  hy: {
-    Apartment: 'Բնակարան',
-    House: 'Տուն',
-    'Commercial Space': 'Կոմերցիոն տարածք',
-    Land: 'Հող',
-  },
-};
-
-const normalizeType = (p) => {
-  const raw = (String(p?.type ?? '') + ' ' + String(p?.title ?? '')).toLowerCase();
-
-  const isApt = /apartment|flat|квартир|բնակարան/.test(raw);
-  const isHouse = /house|дом|տուն/.test(raw);
-  const isCommercial = /commercial|коммер|կոմերց/.test(raw);
-  const isLand = /land|plot|земл|участ|հող/.test(raw);
-
-  if (isCommercial) return 'Commercial Space';
-  if (isLand) return 'Land';
-  if (isApt) return 'Apartment';
-  if (isHouse) return 'House';
-  return '';
-};
-
-const typeText = (p, lang) => {
-  const key = normalizeType(p);
-  return key ? (TYPE_LABELS[lang]?.[key] || key) : '';
+  en: { Apartment: 'Apartment', House: 'House', Villa: 'Commercial Space', Land: 'Land' },
+  ru: { Apartment: 'Квартира', House: 'Дом', Villa: 'Коммерческое помещение', Land: 'Земля' },
+  hy: { Apartment: 'Բնակարան', House: 'Տուն', Villa: 'Կոմերցիոն տարածք', Land: 'Հող' },
 };
 
 const getLang = () =>
   document.documentElement.lang || localStorage.getItem('lang') || 'hy';
 
-// ⬇️ плейсхолдер для картинок (чтобы не было пустого src)
-const FALLBACK_IMG =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect fill='%23f3f4f6' width='100%25' height='100%25'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='24' fill='%239ca3af'%3EPhoto%3C/text%3E%3C/svg%3E";
-
-// 🔹 помощник: красиво собрать подпись этажа
-const hasVal = (v) => v !== null && v !== undefined && v !== '';
-
-const getFloorLabel = (p) => {
-  // сначала любые «текстовые» варианты, если ты вдруг сделаешь отдельное поле
-  const textLike =
-    p?.floorLabel ||
-    p?.floor_text ||
-    p?.floorText ||
-    p?.floor_display;
-
-  if (hasVal(textLike)) return String(textLike);
-
-  // потом — текущий этаж
-  const cur =
-    p?.floor ??
-    p?.level ??
-    p?.floorNumber ??
-    p?.storey ??
-    p?.currentFloor;
-
-  // и общее кол-во этажей
-  const total =
-    p?.buildingFloors ??
-    p?.totalFloors ??
-    p?.floors ??
-    p?.floorCount ??
-    p?.totalFloorCount;
-
-  if (hasVal(cur) && hasVal(total)) return `${cur}/${total}`;
-  if (hasVal(cur)) return String(cur);
-  if (hasVal(total)) return String(total);
-
-  return '—';
-};
-
-// ---------- styled ----------
-
 const Section = styled.section`
   padding: 60px 40px;
   background: white;
-
-  @media (max-width: 768px) {
-    padding: 40px 16px;
-  }
 `;
 const Title = styled.h2`
   text-align: center;
@@ -153,86 +72,53 @@ const Grid = styled.div`
   gap: 30px;
 `;
 
+
 const Card = styled.div`
   width: 350px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e5e7eb;      /* спокойная серая рамка */
   border-radius: 12px;
   overflow: hidden;
   background: #fff;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 10px rgba(0,0,0,.06);
   cursor: pointer;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-
+  transition: transform .25s ease, box-shadow .25s ease;
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 10px 24px rgba(0,0,0,.12);
   }
 `;
 
-const ImageWrapper = styled.div`
-  position: relative;
-`;
+
+const ImageWrapper = styled.div` position: relative; `;
+
 
 const Tag = styled.span`
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 10px; left: 10px;
   background: ${({ $sale }) => ($sale ? '#28a745' : '#ffc107')};
-  color: #fff;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 12px;
+  color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px;
 `;
+
 const CategoryTag = styled.span`
   position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #d9f5e9;
-  color: #1e865b;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 12px;
+  top: 10px; right: 10px;
+  background: #d9f5e9; color: #1e865b;
+  padding: 5px 10px; border-radius: 20px; font-size: 12px;
 `;
-
-const Img = styled.img`
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-`;
-const Content = styled.div`
-  padding: 20px;
-`;
+const Img = styled.img` width: 100%; height: 200px; object-fit: cover; `;
+const Content = styled.div` padding: 20px; `;
 const InfoRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #666;
-  margin: 10px 0;
-  font-size: 15px;
+  display: flex; justify-content: space-between; align-items: center;
+  color: #666; margin: 10px 0; font-size: 15px;
 `;
-const InfoItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 5px;
-`;
-const Price = styled.div`
-  color: #28a745;
-  font-weight: bold;
-  font-size: 20px;
-`;
+const InfoItem = styled.div` display: flex; align-items: center; gap: 5px; `;
+const Price = styled.div` color: #28a745; font-weight: bold; font-size: 20px; `;
 const ViewButton = styled.button`
-  margin-top: 10px;
-  background: #1e1e2c;
-  color: #fff;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 4px;
-  width: 100%;
+  margin-top: 10px; background: #1e1e2c; color: white;
+  padding: 10px 16px; border: none; border-radius: 4px; width: 100%;
 `;
 
-// ---------- компонент ----------
-
-export default function RecentProperties({ filterText = '' }) {
+const RecentProperties = ({ filterText = '' }) => {
   const [lang, setLang] = useState(getLang());
   const t = T[lang] || T.hy;
 
@@ -240,7 +126,6 @@ export default function RecentProperties({ filterText = '' }) {
   const [hydrated, setHydrated] = useState(false);
   const lastNonEmptyRef = useRef(rows);
 
-  // смена языка
   useEffect(() => {
     const el = document.documentElement;
     const obs = new MutationObserver((muts) => {
@@ -254,27 +139,32 @@ export default function RecentProperties({ filterText = '' }) {
     return () => obs.disconnect();
   }, []);
 
-  // загрузка: сначала кеш, потом API + лёгкий поллинг
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
+    let alive = true;
+    (async () => {
       try {
-        setRows(getPropertiesCached());
-        const list = await getProperties({ limit: 12 });
-        if (!cancelled) setRows(Array.isArray(list) ? list : []);
-      } catch {
-        // ignore
+        const res = await getProperties();
+        if (alive) setRows(Array.isArray(res) ? res : []);
       } finally {
-        if (!cancelled) setHydrated(true);
+        if (alive) setHydrated(true);
       }
-    }
+    })();
 
-    load();
-    const timer = setInterval(load, 15000);
+    let unsub = null;
+    try { unsub = subscribeProperties((items) => setRows(Array.isArray(items) ? items : [])); } catch {}
+
+    const reload = async () => {
+      try {
+        const res = await getProperties();
+        setRows(Array.isArray(res) ? res : []);
+      } catch {}
+    };
+    window.addEventListener('pulse:properties-changed', reload);
+
     return () => {
-      cancelled = true;
-      clearInterval(timer);
+      alive = false;
+      if (unsub) unsub();
+      window.removeEventListener('pulse:properties-changed', reload);
     };
   }, []);
 
@@ -282,60 +172,22 @@ export default function RecentProperties({ filterText = '' }) {
     if (Array.isArray(rows) && rows.length) lastNonEmptyRef.current = rows;
   }, [rows]);
 
-  const displayRows = useMemo(
-    () => (rows?.length ? rows : lastNonEmptyRef.current || []),
-    [rows],
-  );
+  const displayRows = rows?.length ? rows : lastNonEmptyRef.current || [];
 
   const query = (filterText || '').trim().toLowerCase();
-
   const filtered = useMemo(() => {
     const base = Array.isArray(displayRows) ? displayRows : [];
     if (!query) return base;
     return base.filter((p) => {
-      const haystack = `${p.title ?? ''} ${p.description ?? ''} ${
-        p.type ?? ''
-      } ${p.status ?? ''}`.toLowerCase();
+      const haystack = `${p.title ?? ''} ${p.description ?? ''} ${p.type ?? ''} ${p.status ?? ''}`.toLowerCase();
       return haystack.includes(query);
     });
   }, [displayRows, query]);
 
-  const fmt = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n.toLocaleString() : v == null ? '' : String(v);
-  };
+  const fmt = (n) => (typeof n === 'number' ? n.toLocaleString() : n);
 
-  // статус
-  const statusLabel = (status) => {
-    const s = String(status || '').toLowerCase();
-    const key =
-      s === 'for_sale' || s === 'sale'
-        ? 'For Sale'
-        : s === 'for_rent' || s === 'rent'
-        ? 'For Rent'
-        : status || '';
-    return STATUS_LABELS[lang]?.[key] || key;
-  };
-
-  // безопасная картинка
-  const isProbablyUrl = (s) =>
-    typeof s === 'string' &&
-    (/^https?:\/\//i.test(s) ||
-      s.startsWith('/') ||
-      s.startsWith('blob:') ||
-      s.startsWith('data:'));
-
-  const safeCover = (p) => {
-    const src =
-      p?.cover_image ||
-      (Array.isArray(p?.images) &&
-        p.images[0] &&
-        (p.images[0].url || p.images[0])) ||
-      p?.image ||
-      '';
-
-    return isProbablyUrl(src) ? src : FALLBACK_IMG;
-  };
+  const statusLabel = (status) => STATUS_LABELS[lang]?.[status] || status || '';
+  const typeLabel = (type) => TYPE_LABELS[lang]?.[type] || type || '';
 
   return (
     <Section id="properties">
@@ -343,11 +195,10 @@ export default function RecentProperties({ filterText = '' }) {
 
       <Grid>
         {filtered.map((property) => {
-          const areaVal =
-            property.area_sq_m ?? property.area ?? property.sqft;
-          const cover = safeCover(property);
+          const areaVal = property.area ?? property.sqft;
+          const floorVal = property.floor ?? property.level ?? property.floorNumber ?? property.storey;
+
           const isSale = /sale/i.test(String(property.status || ''));
-          const floorLabel = getFloorLabel(property);
 
           return (
             <Link
@@ -355,50 +206,27 @@ export default function RecentProperties({ filterText = '' }) {
               to={`/property/${property.id}`}
               style={{ textDecoration: 'none', color: 'inherit' }}
             >
+              {}
               <Card $sale={isSale}>
                 <ImageWrapper>
-                  <Img
-                    src={cover}
-                    alt={property.title || 'property'}
-                    onError={(e) => {
-                      if (e.currentTarget.src !== FALLBACK_IMG) {
-                        e.currentTarget.src = FALLBACK_IMG;
-                      }
-                    }}
-                  />
+                  <Img src={property.images?.[0] || property.image} alt={property.title || 'property'} />
+                  {}
                   <Tag $sale={isSale}>{statusLabel(property.status)}</Tag>
-                  {typeText(property, lang) && (
-                    <CategoryTag>{typeText(property, lang)}</CategoryTag>
-                  )}
+                  <CategoryTag>{typeLabel(property.type)}</CategoryTag>
                 </ImageWrapper>
-
                 <Content>
                   <h4 style={{ margin: 0 }}>{property.title}</h4>
-
                   <InfoRow>
-                    <InfoItem title={t.beds}>
-                      <FaBed /> {property.beds ?? '—'} {t.bedsShort}
-                    </InfoItem>
-                    <InfoItem title={t.baths}>
-                      <FaBath /> {property.baths ?? '—'} {t.bathsShort}
-                    </InfoItem>
+                    <InfoItem title={t.beds}><FaBed /> {property.beds} {t.bedsShort}</InfoItem>
+                    <InfoItem title={t.baths}><FaBath /> {property.baths} {t.bathsShort}</InfoItem>
                     <InfoItem title={t.sqft}>
-                      <FaRulerCombined />{' '}
-                      {areaVal ? `${areaVal} ${t.sqft}` : '—'}
+                      <FaRulerCombined /> {areaVal ? `${areaVal} ${t.sqft}` : '—'}
                     </InfoItem>
                     <InfoItem title={t.floorShort}>
-                      <FaBuilding />{' '}
-                      {floorLabel !== '—'
-                        ? `${floorLabel} ${t.floorShort}`
-                        : '—'}
+                      <FaBuilding /> {floorVal ? `${floorVal} ${t.floorShort}` : '—'}
                     </InfoItem>
                   </InfoRow>
-
-                  <Price>
-                    {property.currency === 'AMD' ? '' : '$'}
-                    {fmt(property.price)}
-                  </Price>
-
+                  <Price>${fmt(property.price)}</Price>
                   <ViewButton>{t.viewDetails}</ViewButton>
                 </Content>
               </Card>
@@ -408,16 +236,33 @@ export default function RecentProperties({ filterText = '' }) {
       </Grid>
 
       {hydrated && filtered.length === 0 && (
-        <p
-          style={{
-            textAlign: 'center',
-            color: '#666',
-            marginTop: 20,
-          }}
-        >
+        <p style={{ textAlign: 'center', color: '#666', marginTop: 20 }}>
           {t.noResults(filterText)}
         </p>
       )}
     </Section>
   );
-}
+};
+
+export default RecentProperties;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

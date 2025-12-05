@@ -1,5 +1,5 @@
 // src/admin/PropertyForm.jsx
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -7,16 +7,18 @@ import {
   getPropertiesCached,
   getPropertyImages,
   saveProperty,
+  getPropertyPanoramas,
   getPropertyPanos,
   setPropertyPanoramas,
   syncLocalPanosToCloud,
-  deleteProperty as apiDeleteProperty,
 } from '../data/db';
+
+
+
+  
+
 import PanoUploader from '../components/PanoUploader';
 
-import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
 
 const Page = styled.div`background:#fff; border-radius:12px; padding:20px;`;
 const Title = styled.h2`margin:0 0 16px 0;`;
@@ -24,42 +26,79 @@ const Title = styled.h2`margin:0 0 16px 0;`;
 const PhotosTop = styled.div`
   --thumbH: 108px;
   --cellW: 120px;
+
   border:1px dashed #d1d5db;
   border-radius:10px;
   padding:12px 12px 8px;
   background:#fafafa;
   margin-bottom:16px;
 `;
-const PhotosHead = styled.div`display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;`;
+
+const PhotosHead = styled.div`
+  display:flex; justify-content:space-between; align-items:center;
+  gap:12px; margin-bottom:8px;
+`;
 const Help = styled.div`font-size:12px; color:#6b7280;`;
+
 const ThumbsRow = styled.div`
-  display:flex; flex-wrap:nowrap; gap:8px;
+  display:flex;
+  flex-wrap:nowrap;
+  gap:8px;
+
   height: var(--thumbH);
   width:100%;
-  overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;
-  scrollbar-width:auto; scrollbar-color:#cbd5e1 #f1f5f9;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+
+  scrollbar-width:auto;
+  scrollbar-color:#cbd5e1 #f1f5f9;
   &::-webkit-scrollbar{ height:10px; }
   &::-webkit-scrollbar-track{ background:#f1f5f9; border-radius:9999px; }
   &::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:9999px; }
   &::-webkit-scrollbar-thumb:hover{ background:#94a3b8; }
 `;
+
 const Thumb = styled.div`
-  position:relative; flex:0 0 var(--cellW);
+  position:relative;
+  flex:0 0 var(--cellW);
   height: calc(var(--thumbH) - 16px);
-  border-radius:8px; overflow:hidden; background:#eee; user-select:none;
+  border-radius:8px;
+  overflow:hidden;
+  background:#eee;
+  user-select:none;
+
   img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .btns{ position:absolute; left:6px; right:6px; bottom:6px; display:flex; gap:6px; justify-content:space-between; }
-  .btn{ background:rgba(0,0,0,.65); color:#fff; border:none; border-radius:6px; padding:4px 6px; font-size:12px; cursor:pointer; }
-  .del{ position:absolute; top:6px; right:6px; background:rgba(0,0,0,.65); color:#fff; border:none; border-radius:6px; padding:4px 6px; font-size:12px; cursor:pointer; }
+
+  /* кнопки управления на миниатюре */
+  .btns{
+    position:absolute; left:6px; right:6px; bottom:6px;
+    display:flex; gap:6px; justify-content:space-between;
+  }
+  .btn{
+    background:rgba(0,0,0,.65); color:#fff; border:none; border-radius:6px;
+    padding:4px 6px; font-size:12px; cursor:pointer;
+  }
+  .del{
+    position:absolute; top:6px; right:6px;
+    background:rgba(0,0,0,.65); color:#fff; border:none; border-radius:6px;
+    padding:4px 6px; font-size:12px; cursor:pointer;
+  }
+
   &.dragging{ opacity:.7; outline:2px solid #111319; }
   &.drag-over{ outline:2px dashed #111319; }
 `;
+
 const CoverBadge = styled.span`
   position:absolute; left:6px; top:6px;
   background:rgba(17,19,25,.85); color:#fff; font-size:10px;
   padding:2px 6px; border-radius:999px;
 `;
-const ScrollControls = styled.div`display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px;`;
+
+const ScrollControls = styled.div`
+  display:flex; align-items:center; justify-content:space-between;
+  gap:8px; margin-top:8px;
+`;
 const ArrowBtn = styled.button`
   min-width:36px; height:28px; border:none; border-radius:8px;
   background:#e5e7eb; color:#111; font-weight:700; cursor:pointer;
@@ -67,57 +106,50 @@ const ArrowBtn = styled.button`
 `;
 
 const Grid = styled.div`
-  display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap:12px;
-  @media (max-width:900px){ grid-template-columns:1fr; }
+  display:grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  gap:12px;
+
+  @media (max-width:900px){
+    grid-template-columns:1fr;
+  }
 `;
 const Field = styled.div`display:flex; flex-direction:column; gap:6px; min-width:0;`;
 const Label = styled.label`font-size:13px; color:#6b7280;`;
 const Input = styled.input`width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px;`;
 const Textarea = styled.textarea`width:100%; min-height:120px; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; resize:vertical;`;
 const Select = styled.select`width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px;`;
-const Actions = styled.div`margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;`;
+const Actions = styled.div`margin-top:16px; display:flex; gap:10px;`;
 const Btn = styled.button`
   padding:10px 14px; border-radius:8px; border:none; font-weight:600; cursor:pointer;
-  &.primary{ background:#111319; color:#fff; }
-  &.ghost{ background:#f3f4f6; }
-  &.danger{ background:#fff0f1; color:#e11d48; border:1px solid #fecdd3; }
+  &:first-child{ background:#111319; color:#fff; }
+  &:last-child{ background:#f3f4f6; }
 `;
 
-const AmenGrid = styled.div`display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 16px; @media (max-width:600px){ grid-template-columns:1fr; }`;
-const AmenItem = styled.label`display:flex; align-items:center; gap:10px; font-size:14px; color:#374151; input{ width:18px; height:18px; }`;
 
-const MapBox = styled.div`
-  margin-top: 4px;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid #eef0f3;
-  background: #fff;
-  .leaflet-container {
-    height: 260px;
-    width: 100%;
-  }
+const AmenGrid = styled.div`
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 16px;
+  @media (max-width:600px){ grid-template-columns:1fr; }
 `;
-const MapTitle = styled.h3`
-  margin: 0 0 10px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1A3D4D;
+const AmenItem = styled.label`
+  display:flex; align-items:center; gap:10px; font-size:14px; color:#374151;
+  input{ width:18px; height:18px; }
 `;
-const MapRow = styled.div`
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 8px;
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
 const AMENITIES = [
-  'Օդորակիչ', 'Սպա և մերսում', 'Սպորտդահլիճ', 'Լողավազան', 'Ահազանգման համակարգ',
-  'Կենտրոնական ջեռուցում', 'Ինտերնետ', 'Լվացքատուն', 'Թույլատրվում են կենդանիներ',
-  'Պատուհանի վարագույրներ', 'Անվճար Wi-Fi', 'Ավտոկայանատեղի',
+  'Օդորակիչ',
+  'Սպա և մերսում',
+  'Սպորտդահլիճ',
+  'Լողավազան',
+  'Ահազանգման համակարգ',
+  'Կենտրոնական ջեռուցում',
+  'Ինտերնետ',
+  'Լվացքատուն',
+  'Թույլատրվում են կենդանիներ',
+  'Պատուհանի վարագույրներ',
+  'Անվճար Wi-Fi',
+  'Ավտոկայանատեղի',
 ];
+
 
 const regionsWithTowns = {
   Yerevan: ['Ajapnyak', 'Avan', 'Davtashen', 'Erebuni', 'Kanaker-Zeytun', 'Kentron', 'Malatia-Sebastia', 'Nor Nork', 'Nork-Marash', 'Nubarashen', 'Shengavit', 'Arabkir'],
@@ -133,34 +165,13 @@ const regionsWithTowns = {
   Tavush: ['Ijevan', 'Dilijan', 'Berd', 'Noyemberyan'],
 };
 
-const DEFAULT_LAT = 40.1772;   // Yerevan
-const DEFAULT_LNG = 44.50349;
-
-const defaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-function MapClickSetter({ onChange }) {
-  useMapEvents({
-    click(e) {
-      if (!onChange) return;
-      onChange(e.latlng.lat, e.latlng.lng);
-    },
+const readFileAsDataURL = (file) =>
+  new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
   });
-  return null;
-}
-
-const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
-  const fr = new FileReader();
-  fr.onload = () => resolve(fr.result);
-  fr.onerror = reject;
-  fr.readAsDataURL(file);
-});
 
 const compressDataUrl = (dataUrl, maxW = 1600, maxH = 1600, quality = 0.8) =>
   new Promise((resolve) => {
@@ -180,22 +191,15 @@ const compressDataUrl = (dataUrl, maxW = 1600, maxH = 1600, quality = 0.8) =>
     img.src = dataUrl;
   });
 
-const normalizeStatus = (s) => {
-  if (!s) return 'for_sale';
-  const v = String(s).toLowerCase();
-  if (v === 'for sale' || v === 'վաճառք' || v === 'продажа' || v === 'for_sale') return 'for_sale';
-  if (v === 'for rent' || v === 'վարձով' || v === 'аренда' || v === 'for_rent') return 'for_rent';
-  return v;
-};
-const labelForStatus = (s) => (normalizeStatus(s) === 'for_rent' ? 'Վարձով' : 'Վաճառք');
-const numOrNull = (v) => (v === '' || v == null ? null : Number(v));
-
 export default function PropertyForm() {
   const params = useParams();
   const navigate = useNavigate();
   const isEdit = params.id && params.id !== 'new';
 
-  const [all, setAll] = useState(() => getPropertiesCached() || []);
+  
+
+
+  const [all, setAll] = useState(() => getPropertiesCached());
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -203,7 +207,6 @@ export default function PropertyForm() {
     setLoading(true);
     Promise.resolve(getProperties())
       .then(items => { if (alive) setAll(Array.isArray(items) ? items : []); })
-      .catch(() => { if (alive) setAll(getPropertiesCached() || []); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
@@ -214,49 +217,27 @@ export default function PropertyForm() {
   }, [all, isEdit, params.id]);
 
   const [draftId] = useState(() => String(Date.now()));
-  const propId = isEdit ? (current?.id ?? params.id) : draftId;
+ const propId = isEdit ? (current?.id ?? params.id) : draftId;
+
+  
+
 
   const [form, setForm] = useState(() => ({
     title: current?.title || '',
-    status: normalizeStatus(current?.status || 'for_sale'),
+    status: current?.status || 'For Sale',
     type: current?.type || 'Apartment',
     price: current?.price ?? '',
     beds: current?.beds ?? '',
     baths: current?.baths ?? '',
     sqft: current?.sqft ?? current?.area ?? '',
-    region: current?.region || current?.Region?.title || '',
-    town: current?.town || current?.Town?.title || '',
+    region: current?.region || '',
+    town: current?.town || '',
     street: current?.street || '',
     description: current?.description || '',
     images: current?.images || (current?.image ? [current.image] : []),
     floor: current?.floor || '',
     amenities: Array.isArray(current?.amenities) ? current.amenities : [],
-    lat: current?.lat ?? '',
-    lng: current?.lng ?? '',
   }));
-
-  useEffect(() => {
-    if (!isEdit || !current) return;
-    setForm(prev => ({
-      ...prev,
-      title: current.title || '',
-      status: normalizeStatus(current.status || 'for_sale'),
-      type: current.type || 'Apartment',
-      price: current.price ?? '',
-      beds: current.beds ?? '',
-      baths: current.baths ?? '',
-      sqft: current.sqft ?? current.area ?? '',
-      region: current.region || current.Region?.title || '',
-      town: current.town || current.Town?.title || '',
-      street: current.street || '',
-      description: current.description || '',
-      images: current.images || (current.image ? [current.image] : []),
-      floor: current.floor || '',
-      amenities: Array.isArray(current.amenities) ? current.amenities : [],
-      lat: current.lat ?? '',
-      lng: current.lng ?? '',
-    }));
-  }, [isEdit, current]);
 
   useEffect(() => {
     (async () => {
@@ -269,25 +250,29 @@ export default function PropertyForm() {
           setForm(prev => ({ ...prev, images: imgs }));
         } else if (current?.image) {
           setForm(prev => ({ ...prev, images: [current.image] }));
+
         }
-      } catch { /* silently */ }
+      } catch { }
     })();
-  }, [current?.id, isEdit, params.id, current?.image]);
+  }, [current?.id]);
 
   const towns = useMemo(
     () => (form.region ? regionsWithTowns[form.region] || [] : []),
     [form.region]
   );
+
   useEffect(() => {
     if (form.region && towns.length && !towns.includes(form.town)) {
       setForm(prev => ({ ...prev, town: '' }));
     }
   }, [form.region, towns, form.town]);
 
+
   const onChange = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }));
+
   const toggleAmenity = (name) =>
-    setForm(prev => {
-      const set = new Set(prev.amenities || []);
+  setForm(prev => {
+    const set = new Set(prev.amenities || []);
       set.has(name) ? set.delete(name) : set.add(name);
       return { ...prev, amenities: [...set] };
     });
@@ -295,16 +280,16 @@ export default function PropertyForm() {
   const rowRef = useRef(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
-  const updateArrows = useCallback(() => {
+
+  const updateArrows = () => {
     const el = rowRef.current;
     if (!el) return;
     const max = el.scrollWidth - el.clientWidth;
     setCanLeft(el.scrollLeft > 0);
     setCanRight(el.scrollLeft < max - 1);
-  }, []);
+  };
 
   const onFiles = async (files) => {
-    if (!files) return;
     const list = Array.from(files).slice(0, 80);
     const out = [];
     for (const file of list) {
@@ -312,12 +297,14 @@ export default function PropertyForm() {
         const raw = await readFileAsDataURL(file);
         const compressed = await compressDataUrl(raw, 1600, 1600, 0.8);
         out.push(compressed);
-      } catch { /* ignore one failed file */ }
+      } catch { }
     }
-    if (out.length) setForm(prev => ({ ...prev, images: [...(prev.images || []), ...out] }));
+    if (out.length) setForm(prev => ({ ...prev, images: [...(prev.images || []), ...out] }))
     setTimeout(updateArrows, 0);
   };
+
   const removeImage = (idx) => setForm(prev => ({ ...prev, images: (prev.images || []).filter((_, i) => i !== idx) }));
+
 
   useEffect(() => {
     const el = rowRef.current;
@@ -330,12 +317,17 @@ export default function PropertyForm() {
       el.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [form.images?.length, updateArrows]);
+  }, [form.images?.length]);
 
-  const nudge = (dir) => rowRef.current?.scrollBy({ left: dir * 360, behavior: 'smooth' });
+  const nudge = (dir) => {
+    const el = rowRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * 360, behavior: 'smooth' });
+  };
 
   const [dragIdx, setDragIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
+
   const moveItem = (arr, from, to) => {
     const a = [...arr];
     if (from === to || from < 0 || to < 0 || from >= a.length || to >= a.length) return a;
@@ -343,14 +335,22 @@ export default function PropertyForm() {
     a.splice(to, 0, m);
     return a;
   };
+
   const onDragStart = (e, i) => {
     setDragIdx(i);
     try { e.dataTransfer.setData('text/plain', String(i)); } catch { }
     e.dataTransfer.effectAllowed = 'move';
   };
-  const onDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
-  const onDragEnter = (i) => { if (dragIdx !== null && dragIdx !== i) setOverIdx(i); };
+  const onDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+  const onDragEnter = (i) => {
+    if (dragIdx === null || dragIdx === i) return;
+    setOverIdx(i);
+  };
   const onDragLeave = () => setOverIdx(null);
+
   const onDrop = (e, to) => {
     e.preventDefault();
     const data = e.dataTransfer.getData('text/plain');
@@ -361,130 +361,63 @@ export default function PropertyForm() {
     setTimeout(updateArrows, 0);
   };
   const onDragEnd = () => { setDragIdx(null); setOverIdx(null); };
-  const moveLeft = (i) => setForm(prev => ({ ...prev, images: moveItem(prev.images || [], i, Math.max(0, i - 1)) }));
+
+  const moveLeft  = (i) => setForm(prev => ({ ...prev, images: moveItem(prev.images || [], i, Math.max(0, i - 1)) }));
   const moveRight = (i) => setForm(prev => ({ ...prev, images: moveItem(prev.images || [], i, Math.min((prev.images?.length || 1) - 1, i + 1)) }));
   const makeCover = (i) => setForm(prev => ({ ...prev, images: moveItem(prev.images || [], i, 0) }));
 
-  const handleGeocode = async () => {
-    const parts = [form.region, form.town, form.street].filter(Boolean);
-    const q = parts.join(', ');
-    if (!q) return;
-
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-      const res = await fetch(url, {
-        headers: { 'Accept-Language': 'hy,en;q=0.8,ru;q=0.6' },
-      });
-      const data = await res.json();
-      if (Array.isArray(data) && data.length) {
-        const hit = data[0];
-        setForm(f => ({
-          ...f,
-          lat: hit.lat,
-          lng: hit.lon,
-        }));
-      } else {
-        alert('Հասցեն չի գտնվել քարտեզում');
-      }
-    } catch (e) {
-      alert('Սխալ քարտեզի հարցման ժամանակ');
-    }
-  };
 
   const save = async () => {
     if (!form.title.trim()) { alert('Գրեք վերնագիր'); return; }
-    if (form.price === '' || Number(form.price) < 0) { alert('Գրեք գինը'); return; }
+    if (!form.price || Number(form.price) < 0) { alert('Գրեք գինը'); return; }
     if (!form.region) { alert('Ընտրեք մարզը'); return; }
+  
+    const id = isEdit ? (current?.id ?? params.id) : draftId;
+  
 
-    const editingId = isEdit ? (current?.id ?? params.id) : null;
-    const draftLocalId = String(propId);
-
-    const panosLocal = (await getPropertyPanos(editingId || draftLocalId)) || [];
-
-    const payloadBase = {
-      title: form.title,
-      type: form.type,
-      status: normalizeStatus(form.status),
-      price: numOrNull(form.price),
-      beds: numOrNull(form.beds),
-      baths: numOrNull(form.baths),
-      sqft: numOrNull(form.sqft),
-      area: numOrNull(form.sqft),
-      area_sq_m: numOrNull(form.sqft),
-      floor: form.floor || null,
-
-      region: form.region || '',
-      town: form.town || '',
-      street: form.street || '',
-      description: form.description || '',
-      amenities: Array.isArray(form.amenities) ? form.amenities : [],
-      image: (form.images && form.images[0]) || '',
-      images: form.images || [],
-      panos: panosLocal,
-      updatedAt: new Date().toISOString(),
-
-      lat: numOrNull(form.lat),
-      lng: numOrNull(form.lng),
-    };
-
-  const payload = editingId
-      ? { id: editingId, ...payloadBase }
-      : { id: draftLocalId, ...payloadBase };
-
-    setLoading(true);
     try {
-      const saved = await saveProperty(payload);
-      const savedId = String(saved?.id ?? editingId ?? draftLocalId);
-
-      if (!editingId && saved?.id && draftLocalId !== String(saved.id)) {
-        try {
-          const draftPanos = await getPropertyPanos(draftLocalId);
-          if (draftPanos?.length) {
-            setPropertyPanoramas(String(saved.id), draftPanos);
-          }
-        } catch { /* noop */ }
+      const oldId = String(propId);
+      const newId = String(id);
+      if (oldId !== newId) {
+        const draftPanos = getPropertyPanos(oldId) || [];
+        if (draftPanos.length) setPropertyPanoramas(newId, draftPanos);
       }
+    } catch (_) {}
+  
+    const payload = {
+      ...current,
+      ...form,
+      id,
+      image: (form.images && form.images[0]) || '',
+      sqft: form.sqft,
+      area: form.sqft,
+      updatedAt: new Date().toISOString(),
+    };
+  
+    try {
+      await saveProperty(payload);
+  
 
       try {
-        await syncLocalPanosToCloud(savedId);
+        await syncLocalPanosToCloud(id);
         window.dispatchEvent(new CustomEvent('pulse:panos-changed', {
-          detail: { propertyId: savedId }
+          detail: { propertyId: String(id) }
         }));
       } catch (e) {
         console.error('Failed to sync panos to cloud', e);
       }
-
+  
       window.dispatchEvent(new Event('pulse:properties-changed'));
       alert('Պահպանված է');
       navigate('/admin/properties');
     } catch (e) {
       console.error(e);
-      alert('Չստացվեց պահել');
-    } finally {
-      setLoading(false);
+      alert('Չստացվեց պահել Firestore-ում');
     }
   };
-
-  const onDelete = async () => {
-    const targetId = current?.id ?? params.id;
-    if (!targetId) return;
-    if (!window.confirm('Ջնջե՞լ այս գույքը։')) return;
-
-    setLoading(true);
-    try {
-      await apiDeleteProperty(String(targetId));
-      window.dispatchEvent(new Event('pulse:properties-changed'));
-      navigate('/admin/properties');
-    } catch (e) {
-      console.error(e);
-      alert('Չհաջողվեց ջնջել: ' + (e?.message || ''));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const centerLat = Number(form.lat) || DEFAULT_LAT;
-  const centerLng = Number(form.lng) || DEFAULT_LNG;
+  
+    
+  
 
   return (
     <Page>
@@ -498,14 +431,20 @@ export default function PropertyForm() {
           </Help>
         </PhotosHead>
 
-        <Input id="photos" type="file" accept="image/*" multiple onChange={(e) => onFiles(e.target.files)} />
+        <Input
+          id="photos"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(e) => onFiles(e.target.files)}
+        />
 
         {!!(form.images && form.images.length) && (
           <>
             <ThumbsRow ref={rowRef}>
               {form.images.map((src, i) => (
                 <Thumb
-                  key={`${src}-${i}`}
+                  key={i}
                   draggable
                   onDragStart={(e) => onDragStart(e, i)}
                   onDragOver={onDragOver}
@@ -537,6 +476,7 @@ export default function PropertyForm() {
         )}
       </PhotosTop>
 
+
       <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: 12, marginBottom: 16 }}>
         <h3 style={{ margin: '0 0 8px 0' }}>360° պանորամաներ</h3>
         <PanoUploader key={propId} propertyId={propId} />
@@ -544,6 +484,7 @@ export default function PropertyForm() {
           Ավելացրեք մեկ կամ մի քանի 360° նկար (equirectangular). Նկարները պահպանվում են տեղային և կցվում են այս գույքին։
         </div>
       </div>
+
 
       <Grid>
         <Field>
@@ -554,8 +495,8 @@ export default function PropertyForm() {
         <Field>
           <Label htmlFor="status">Գործարքի տեսակ</Label>
           <Select id="status" value={form.status} onChange={onChange('status')}>
-            <option value="for_sale">Վաճառք</option>
-            <option value="for_rent">Վարձով</option>
+            <option value="For Sale">Վաճառք</option>
+            <option value="For Rent">Վարձով</option>
           </Select>
         </Field>
 
@@ -571,7 +512,7 @@ export default function PropertyForm() {
 
         <Field>
           <Label htmlFor="price">Գին (USD)</Label>
-          <Input id="price" inputMode="decimal" type="number" placeholder="Գին" value={form.price} onChange={onChange('price')} />
+          <Input id="price" type="number" placeholder="Գին" value={form.price} onChange={onChange('price')} />
         </Field>
 
         <Field>
@@ -617,75 +558,9 @@ export default function PropertyForm() {
           <Input id="street" placeholder="Փողոց / Հասցե" value={form.street} onChange={onChange('street')} />
         </Field>
 
-        <Field style={{ gridColumn: 'span 2' }}>
-          <MapBox>
-            <MapTitle>Քարտեզում հասցեն</MapTitle>
-            <MapRow>
-              <Input
-                placeholder="Փողոց / հասցե (քաղաքը կավելացվի ավտոմատ)"
-                value={form.street}
-                onChange={onChange('street')}
-              />
-              <Input
-                type="number"
-                step="0.000001"
-                placeholder="Լատ (lat)"
-                value={form.lat ?? ''}
-                onChange={onChange('lat')}
-              />
-              <Input
-                type="number"
-                step="0.000001"
-                placeholder="Լոնգ (lng)"
-                value={form.lng ?? ''}
-                onChange={onChange('lng')}
-              />
-            </MapRow>
-
-            <button
-              type="button"
-              onClick={handleGeocode}
-              style={{
-                marginBottom: 8,
-                padding: '8px 12px',
-                borderRadius: 8,
-                border: 'none',
-                background: '#f0ae00',
-                color: '#111',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Գտնել քարտեզում ըստ հասցեի
-            </button>
-
-            <MapContainer
-              center={[centerLat, centerLng]}
-              zoom={15}
-              scrollWheelZoom={false}
-              style={{ borderRadius: 12, overflow: 'hidden' }}
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution="&copy; OpenStreetMap contributors"
-              />
-              <Marker position={[centerLat, centerLng]} icon={defaultIcon} />
-              <MapClickSetter
-                onChange={(lat, lng) =>
-                  setForm(f => ({
-                    ...f,
-                    lat: lat.toFixed(6),
-                    lng: lng.toFixed(6),
-                  }))
-                }
-              />
-            </MapContainer>
-          </MapBox>
-        </Field>
 
         <Field style={{ gridColumn: 'span 2' }}>
-          {/* блок удобств пока убран по твоей просьбе */}
-          {/* <Label>Հարմարություններ</Label>
+          <Label>Հարմարություններ</Label>
           <AmenGrid>
             {AMENITIES.map(a => (
               <AmenItem key={a}>
@@ -697,25 +572,38 @@ export default function PropertyForm() {
                 <span>{a}</span>
               </AmenItem>
             ))}
-          </AmenGrid> */}
+          </AmenGrid>
         </Field>
 
         <Field style={{ gridColumn: 'span 2' }}>
           <Label htmlFor="desc">Նկարագրություն</Label>
           <Textarea id="desc" placeholder="Նկարագրություն" value={form.description} onChange={onChange('description')} />
         </Field>
+
       </Grid>
 
       <Actions>
-        <Btn className="primary" onClick={save} disabled={loading}>{loading ? 'Բեռնում…' : 'Պահպանել'}</Btn>
-        <Btn className="ghost" type="button" onClick={() => navigate('/admin/properties')}>Չեղարկել</Btn>
-        {isEdit && (
-          <Btn className="danger" type="button" onClick={onDelete} disabled={loading}>Ջնջել</Btn>
-        )}
-        <div style={{ marginLeft: 'auto', color: '#6b7280', alignSelf: 'center' }}>
-          {isEdit ? `ID: ${current?.id ?? params.id}` : `Կարգավիճակ: ${labelForStatus(form.status)}`}
-        </div>
+        <Btn onClick={save} disabled={loading}>{loading ? 'Բեռնում…' : 'Պահպանել'}</Btn>
+        <Btn type="button" onClick={() => navigate('/admin/properties')}>Չեղարկել</Btn>
       </Actions>
     </Page>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
